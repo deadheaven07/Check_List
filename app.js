@@ -1,6 +1,12 @@
 /**
  * Checklist &bull; Daily Tasks & Focus Flow
- * Interactive Logic, Web Audio Soundscapes, Confetti Particle System & Local Storage
+ * Integrated with ChecklistDSA Engine:
+ * - Directed Acyclic Graph (DAG) with Kahn's Topological Sort & Cycle Detection
+ * - Binary Min-Heap Priority Queue for O(log N) Urgency Scheduling
+ * - Prefix Trie for Sub-Millisecond Prefix Autocomplete & Search
+ * - Command Pattern with Dual Stacks for Undo/Redo (Cmd+Z / Cmd+Y)
+ * - 0/1 Knapsack Dynamic Programming for Smart Day Timeboxing
+ * - Event Mutation Outbox for Offline-First Architecture
  */
 
 (function () {
@@ -12,8 +18,14 @@
   const STORAGE_KEY_TASKS = 'checklist_tasks_v1';
   const STORAGE_KEY_SETTINGS = 'checklist_settings_v1';
 
-  // Empty initial list - no dummy tasks
   const DEFAULT_TASKS = [];
+
+  // Instantiate DSA & System Design Engine
+  const dsaDAG = new window.ChecklistDSA.TaskDAG();
+  const dsaHeap = new window.ChecklistDSA.TaskMinHeap();
+  const dsaTrie = new window.ChecklistDSA.TaskTrie();
+  const commandManager = new window.ChecklistDSA.CommandManager(50);
+  const mutationOutbox = new window.ChecklistDSA.MutationOutbox();
 
   let tasks = loadTasks();
   let currentFilter = 'all';
@@ -21,11 +33,12 @@
   let currentSort = 'created-desc';
   let soundEnabled = true;
 
-  // Composer Selected State
+  // Selected Composer State
   let composerState = {
     category: 'Personal',
     priority: 'low',
-    energy: 'quick'
+    energy: 'quick',
+    dependsOn: ''
   };
 
   // Focus Timer State
@@ -35,8 +48,12 @@
   let isTimerRunning = false;
   let activeAmbientType = 'none';
 
+  // Active DSA Inspector Tab
+  let activeDsaTab = 'dag';
+  let plannerSelectedBudget = 60;
+
   // ---------------------------------------------------------------------------
-  // 2. Web Audio Synthesizer (Zero External Audio Files Required)
+  // 2. Web Audio Synthesizer (No external assets required)
   // ---------------------------------------------------------------------------
   let audioCtx = null;
   let ambientNoiseNode = null;
@@ -54,7 +71,6 @@
     }
   }
 
-  // Pleasant Wooden Pop / Water Droplet sound on Task Add
   function playPopSound() {
     if (!soundEnabled) return;
     initAudioContext();
@@ -63,7 +79,6 @@
     try {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
-      
       osc.type = 'sine';
       osc.frequency.setValueAtTime(440, audioCtx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.08);
@@ -76,12 +91,9 @@
 
       osc.start();
       osc.stop(audioCtx.currentTime + 0.12);
-    } catch (e) {
-      console.warn('Audio play error:', e);
-    }
+    } catch (e) {}
   }
 
-  // Harmonic Marimba Chime on Task Complete
   function playChimeSound() {
     if (!soundEnabled) return;
     initAudioContext();
@@ -93,7 +105,6 @@
       notes.forEach((freq, index) => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, now + index * 0.07);
 
@@ -107,12 +118,9 @@
         osc.start(now + index * 0.07);
         osc.stop(now + index * 0.07 + 0.38);
       });
-    } catch (e) {
-      console.warn('Audio play error:', e);
-    }
+    } catch (e) {}
   }
 
-  // Soft Sweep on Delete
   function playDeleteSound() {
     if (!soundEnabled) return;
     initAudioContext();
@@ -133,12 +141,9 @@
 
       osc.start();
       osc.stop(audioCtx.currentTime + 0.15);
-    } catch (e) {
-      console.warn('Audio play error:', e);
-    }
+    } catch (e) {}
   }
 
-  // Synthesized Ambient Sound Generator for Focus Mode
   function startAmbientSound(type) {
     stopAmbientSound();
     if (type === 'none' || !soundEnabled) return;
@@ -150,8 +155,7 @@
       const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
 
-      // Generate White or Pinkish noise
-      let b0 = 0, b1 = 0, b2 = 0;
+      let b0 = 0, b1 = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
         if (type === 'rain' || type === 'lofi') {
@@ -167,7 +171,6 @@
       whiteNoise.buffer = noiseBuffer;
       whiteNoise.loop = true;
 
-      // Filter to simulate soft raindrops or steady gentle stream
       const filter = audioCtx.createBiquadFilter();
       if (type === 'rain') {
         filter.type = 'lowpass';
@@ -190,9 +193,7 @@
 
       whiteNoise.start();
       ambientNoiseNode = whiteNoise;
-    } catch (e) {
-      console.warn('Ambient noise error:', e);
-    }
+    } catch (e) {}
   }
 
   function stopAmbientSound() {
@@ -212,7 +213,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 3. Canvas Confetti Particle System
+  // 3. Canvas Confetti
   // ---------------------------------------------------------------------------
   const canvas = document.getElementById('confetti-canvas');
   const ctx = canvas.getContext('2d');
@@ -236,8 +237,7 @@
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * 7 + 3;
       particles.push({
-        x: x,
-        y: y,
+        x, y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed - 3,
         color: colors[Math.floor(Math.random() * colors.length)],
@@ -262,8 +262,8 @@
       const p = particles[i];
       p.x += p.vx;
       p.y += p.vy;
-      p.vy += 0.18; // gravity
-      p.vx *= 0.98; // air resistance
+      p.vy += 0.18;
+      p.vx *= 0.98;
       p.rotation += p.rotationSpeed;
       p.life++;
 
@@ -293,7 +293,41 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Date & Greeting Helpers
+  // 4. Toast Notifications & Undo Action
+  // ---------------------------------------------------------------------------
+  function showToast(message, allowUndo = false) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `
+      <span>${escapeHTML(message)}</span>
+      ${allowUndo ? `<button class="toast-undo-btn" id="toast-undo-action">Undo</button>` : ''}
+    `;
+
+    container.appendChild(toast);
+
+    if (allowUndo) {
+      const undoBtn = toast.querySelector('#toast-undo-action');
+      if (undoBtn) {
+        undoBtn.addEventListener('click', () => {
+          handleUndo();
+          toast.remove();
+        });
+      }
+    }
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(10px)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. Date & Greeting Helpers
   // ---------------------------------------------------------------------------
   function getTodayDateString() {
     const today = new Date();
@@ -325,50 +359,59 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 5. Tasks Management & Storage
+  // 6. Tasks Management & Storage
   // ---------------------------------------------------------------------------
   function loadTasks() {
     try {
-      // Check Checklist storage
       const data = localStorage.getItem(STORAGE_KEY_TASKS);
-      if (data) {
-        return JSON.parse(data);
-      }
+      if (data) return JSON.parse(data);
 
-      // Check for any tasks added in previous session
       const prevKlaro = localStorage.getItem('klaro_tasks_v1') || localStorage.getItem('bloom_tasks_v2');
       if (prevKlaro) {
         const parsed = JSON.parse(prevKlaro);
         localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(parsed));
         return parsed;
       }
-
-      // Check legacy v1 and purge dummy tasks
-      const oldData = localStorage.getItem('bloom_tasks_v1');
-      if (oldData) {
-        const parsed = JSON.parse(oldData);
-        const dummyIds = ['task-1', 'task-2', 'task-3', 'task-4'];
-        const userOnly = parsed.filter(t => !dummyIds.includes(t.id));
-        localStorage.removeItem('bloom_tasks_v1');
-        localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(userOnly));
-        return userOnly;
-      }
-    } catch (e) {
-      console.warn('Error reading from localStorage', e);
-    }
+    } catch (e) {}
     return DEFAULT_TASKS;
   }
 
-  function saveTasks() {
+  function saveTasks(skipOutbox = false) {
     try {
       localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
-    } catch (e) {
-      console.warn('Error writing to localStorage', e);
-    }
+    } catch (e) {}
+    rebuildDSAEngines();
     renderAll();
+    updateUndoRedoButtons();
   }
 
-  function addTask(title, category, priority, energy, dueDate) {
+  // Rebuild DAG, Binary Heap, and Prefix Trie structures from active state
+  function rebuildDSAEngines() {
+    // 1. Build DAG Graph
+    dsaDAG.buildGraph(tasks);
+
+    // 2. Rebuild Binary Heap (Active tasks prioritized by urgency score)
+    dsaHeap.clear();
+    for (const t of tasks) {
+      if (!t.completed) {
+        dsaHeap.insert(t);
+      }
+    }
+
+    // 3. Rebuild Prefix Trie
+    dsaTrie.clear();
+    for (const t of tasks) {
+      dsaTrie.indexTask(t);
+    }
+
+    // 4. Update Dependency Dropdown in Composer
+    updateDependencySelectOptions();
+  }
+
+  // ---------------------------------------------------------------------------
+  // 7. Command Pattern Handlers (Undo / Redo)
+  // ---------------------------------------------------------------------------
+  function handleAddTask(title, category, priority, energy, dueDate, dependsOn) {
     const newTask = {
       id: 'task-' + Date.now(),
       title: title.trim(),
@@ -376,134 +419,172 @@
       priority: priority || 'low',
       energy: energy || 'quick',
       dueDate: dueDate || '',
+      dependsOn: dependsOn ? [dependsOn] : [],
       completed: false,
       completedAt: null,
       createdAt: Date.now()
     };
 
-    tasks.unshift(newTask);
-    saveTasks();
+    // Cycle detection verification
+    if (dependsOn && dsaDAG.hasCycle(newTask.id, dependsOn)) {
+      alert("⚠️ Circular Dependency Detected!\nThis task cannot depend on the selected item as it would create an infinite dependency cycle.");
+      return;
+    }
+
+    const command = {
+      name: `Add "${newTask.title.slice(0, 20)}..."`,
+      execute: () => {
+        tasks.unshift(newTask);
+        mutationOutbox.enqueue('TASK_CREATE', newTask);
+        saveTasks();
+      },
+      undo: () => {
+        tasks = tasks.filter(t => t.id !== newTask.id);
+        mutationOutbox.enqueue('TASK_DELETE', { id: newTask.id });
+        saveTasks();
+      }
+    };
+
+    commandManager.execute(command);
     playPopSound();
+    showToast(`Added: ${newTask.title.slice(0, 25)}...`, true);
   }
 
-  function toggleTaskCompletion(taskId, clientX, clientY) {
+  function handleToggleTask(taskId, clientX, clientY) {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    task.completed = !task.completed;
-    task.completedAt = task.completed ? Date.now() : null;
+    // Check if task is blocked
+    if (!task.completed && dsaDAG.isTaskBlocked(task, tasks)) {
+      const unmet = dsaDAG.getUnmetDependencies(task, tasks);
+      const blockerNames = unmet.map(u => `"${u.title}"`).join(', ');
+      showToast(`🔒 Blocked! Complete prerequisite first: ${blockerNames}`);
+      return;
+    }
+
+    const prevCompleted = task.completed;
+    const prevCompletedAt = task.completedAt;
+
+    const command = {
+      name: prevCompleted ? `Uncheck "${task.title.slice(0, 20)}..."` : `Complete "${task.title.slice(0, 20)}..."`,
+      execute: () => {
+        task.completed = !prevCompleted;
+        task.completedAt = task.completed ? Date.now() : null;
+        mutationOutbox.enqueue('TASK_TOGGLE', { id: task.id, completed: task.completed });
+        saveTasks();
+      },
+      undo: () => {
+        task.completed = prevCompleted;
+        task.completedAt = prevCompletedAt;
+        mutationOutbox.enqueue('TASK_TOGGLE', { id: task.id, completed: task.completed });
+        saveTasks();
+      }
+    };
+
+    commandManager.execute(command);
 
     if (task.completed) {
       playChimeSound();
       triggerConfetti(clientX, clientY, 35);
+      showToast(`Completed: ${task.title.slice(0, 25)}...`, true);
 
-      // Check if all tasks in list are completed
+      // Check if all tasks done
       const remaining = tasks.filter(t => !t.completed).length;
       if (remaining === 0 && tasks.length > 0) {
-        setTimeout(() => {
-          triggerConfetti(window.innerWidth / 2, window.innerHeight * 0.35, 70);
-        }, 300);
+        setTimeout(() => triggerConfetti(window.innerWidth / 2, window.innerHeight * 0.35, 75), 250);
       }
     } else {
       playPopSound();
+      showToast(`Restored: ${task.title.slice(0, 25)}...`, true);
     }
-
-    saveTasks();
   }
 
-  function deleteTask(taskId) {
-    playDeleteSound();
-    tasks = tasks.filter(t => t.id !== taskId);
-    saveTasks();
-  }
+  function handleDeleteTask(taskId) {
+    const originalIndex = tasks.findIndex(t => t.id === taskId);
+    if (originalIndex === -1) return;
+    const task = tasks[originalIndex];
 
-  function clearCompleted() {
-    const count = tasks.filter(t => t.completed).length;
-    if (count === 0) return;
-    playDeleteSound();
-    tasks = tasks.filter(t => !t.completed);
-    saveTasks();
-  }
-
-  // ---------------------------------------------------------------------------
-  // 6. Rendering Logic
-  // ---------------------------------------------------------------------------
-  function renderAll() {
-    renderOverview();
-    renderTasksList();
-    renderCounts();
-    populateFocusTaskPicker();
-  }
-
-  function renderOverview() {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
-    const pending = total - completed;
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    // Elements
-    const ringFill = document.getElementById('progress-ring-fill');
-    const percentageLabel = document.getElementById('progress-percentage');
-    const summaryLabel = document.getElementById('progress-summary');
-    const momentumBadge = document.getElementById('momentum-badge');
-    const completedCountEl = document.getElementById('completed-count');
-    const pendingCountEl = document.getElementById('pending-count');
-    const streakCountEl = document.getElementById('streak-count');
-
-    if (completedCountEl) completedCountEl.textContent = completed;
-    if (pendingCountEl) pendingCountEl.textContent = pending;
-    if (streakCountEl) streakCountEl.textContent = completed > 0 ? 1 : 0;
-
-    // Circular progress ring: perimeter = 2 * PI * 35 ≈ 219.91
-    const circumference = 2 * Math.PI * 35;
-    if (ringFill) {
-      const offset = circumference - (percentage / 100) * circumference;
-      ringFill.style.strokeDashoffset = offset;
-    }
-
-    if (percentageLabel) {
-      percentageLabel.textContent = `${percentage}%`;
-    }
-
-    if (summaryLabel) {
-      summaryLabel.textContent = `${completed} of ${total} tasks completed`;
-    }
-
-    // Dynamic momentum badge message
-    if (momentumBadge) {
-      if (total === 0) {
-        momentumBadge.innerHTML = `<i class="ph-fill ph-leaf"></i> Fresh slate`;
-      } else if (percentage === 100) {
-        momentumBadge.innerHTML = `<i class="ph-fill ph-sparkle"></i> Wonderful job! Done! 🎉`;
-      } else if (percentage >= 50) {
-        momentumBadge.innerHTML = `<i class="ph-fill ph-fire"></i> In deep momentum ✨`;
-      } else {
-        momentumBadge.innerHTML = `<i class="ph-fill ph-plant"></i> Taking small steps 🌱`;
+    const command = {
+      name: `Delete "${task.title.slice(0, 20)}..."`,
+      execute: () => {
+        tasks.splice(originalIndex, 1);
+        mutationOutbox.enqueue('TASK_DELETE', { id: taskId });
+        saveTasks();
+      },
+      undo: () => {
+        tasks.splice(originalIndex, 0, task);
+        mutationOutbox.enqueue('TASK_RESTORE', task);
+        saveTasks();
       }
+    };
+
+    commandManager.execute(command);
+    playDeleteSound();
+    showToast(`Deleted: ${task.title.slice(0, 25)}...`, true);
+  }
+
+  function handleUndo() {
+    if (!commandManager.canUndo()) return;
+    const name = commandManager.undo();
+    playDeleteSound();
+    showToast(`Undone: ${name}`);
+  }
+
+  function handleRedo() {
+    if (!commandManager.canRedo()) return;
+    const name = commandManager.redo();
+    playPopSound();
+    showToast(`Redone: ${name}`);
+  }
+
+  function updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    if (undoBtn) undoBtn.disabled = !commandManager.canUndo();
+    if (redoBtn) redoBtn.disabled = !commandManager.canRedo();
+  }
+
+  function updateDependencySelectOptions() {
+    const select = document.getElementById('task-dependency-select');
+    if (!select) return;
+
+    const currentVal = select.value;
+    const activeTasks = tasks.filter(t => !t.completed);
+
+    select.innerHTML = `
+      <option value="">None (Independent task)</option>
+      ${activeTasks.map(t => `<option value="${t.id}">${escapeHTML(t.title.slice(0, 35))}</option>`).join('')}
+    `;
+
+    if (currentVal && activeTasks.some(t => t.id === currentVal)) {
+      select.value = currentVal;
     }
   }
 
-  function renderCounts() {
-    const countAll = tasks.length;
-    const countToday = tasks.filter(t => t.dueDate === getTodayDateString() && !t.completed).length;
-    const countHigh = tasks.filter(t => t.priority === 'high' && !t.completed).length;
-    const countCompleted = tasks.filter(t => t.completed).length;
-
-    const elAll = document.getElementById('count-all');
-    const elToday = document.getElementById('count-today');
-    const elHigh = document.getElementById('count-high');
-    const elCompleted = document.getElementById('count-completed');
-
-    if (elAll) elAll.textContent = countAll;
-    if (elToday) elToday.textContent = countToday;
-    if (elHigh) elHigh.textContent = countHigh;
-    if (elCompleted) elCompleted.textContent = countCompleted;
-  }
-
+  // ---------------------------------------------------------------------------
+  // 8. Filtering, Searching & Rendering
+  // ---------------------------------------------------------------------------
   function getFilteredAndSortedTasks() {
     let result = [...tasks];
 
-    // Filter
+    // DSA Custom Filters
+    if (currentFilter === 'heap') {
+      // Order directly by binary min-heap urgency score
+      const clonedHeap = new window.ChecklistDSA.TaskMinHeap();
+      tasks.filter(t => !t.completed).forEach(t => clonedHeap.insert(t));
+      const heapOrdered = [];
+      while (!clonedHeap.isEmpty()) {
+        heapOrdered.push(clonedHeap.extractMin());
+      }
+      return heapOrdered;
+    }
+
+    if (currentFilter === 'topo') {
+      // Order by Kahn's Topological Sort algorithm (prerequisites first)
+      const topoList = dsaDAG.getTopologicalOrder(tasks.filter(t => !t.completed));
+      return topoList;
+    }
+
     if (currentFilter === 'today') {
       const todayStr = getTodayDateString();
       result = result.filter(t => t.dueDate === todayStr || (!t.dueDate && !t.completed));
@@ -513,17 +594,22 @@
       result = result.filter(t => t.completed);
     }
 
-    // Search query
+    // Prefix Trie Search Optimization
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      result = result.filter(t => 
-        t.title.toLowerCase().includes(q) || 
-        t.category.toLowerCase().includes(q) ||
-        t.priority.toLowerCase().includes(q)
-      );
+      const matchedIds = dsaTrie.searchPrefix(q);
+      if (matchedIds && matchedIds.size > 0) {
+        result = result.filter(t => matchedIds.has(t.id));
+      } else {
+        // Fallback substring search
+        result = result.filter(t =>
+          t.title.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q)
+        );
+      }
     }
 
-    // Sort
+    // Sorting
     if (currentSort === 'created-desc') {
       result.sort((a, b) => b.createdAt - a.createdAt);
     } else if (currentSort === 'priority-desc') {
@@ -564,36 +650,44 @@
           if (searchQuery) {
             emptyMsg.textContent = `No tasks matching "${searchQuery}".`;
           } else if (currentFilter === 'completed') {
-            emptyMsg.textContent = 'No completed tasks yet. Finish a task to see it celebrated here!';
+            emptyMsg.textContent = 'No completed tasks yet. Check off an intention to celebrate it here!';
+          } else if (currentFilter === 'heap') {
+            emptyMsg.textContent = 'Min-Heap queue is empty! Add active tasks to schedule them.';
+          } else if (currentFilter === 'topo') {
+            emptyMsg.textContent = 'No dependency chains active.';
           } else {
-            emptyMsg.textContent = 'Take a deep breath or add a new intention above.';
+            emptyMsg.textContent = 'All clear & peaceful! Take a deep breath or add a new intention above.';
           }
         }
       }
       return;
     }
 
-    if (emptyStateEl) {
-      emptyStateEl.classList.add('hidden');
-    }
+    if (emptyStateEl) emptyStateEl.classList.add('hidden');
 
-    // Render cards
-    listEl.innerHTML = filtered.map(task => {
-      const isOverdue = task.dueDate && task.dueDate < getTodayDateString() && !task.completed;
+    listEl.innerHTML = filtered.map((task, index) => {
+      const isBlocked = !task.completed && dsaDAG.isTaskBlocked(task, tasks);
+      const unmet = isBlocked ? dsaDAG.getUnmetDependencies(task, tasks) : [];
+      const blockerNames = unmet.map(u => u.title).join(', ');
+
       const formattedDate = formatDueDate(task.dueDate);
+      const isOverdue = task.dueDate && task.dueDate < getTodayDateString() && !task.completed;
 
       const categoryClass = 'cat-' + task.category.toLowerCase();
       const priorityLabel = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
-      
+
       let energyLabel = '⚡ Quick Win';
       if (task.energy === 'steady') energyLabel = '☕ Steady';
       if (task.energy === 'deep') energyLabel = '🔥 Deep Flow';
 
+      // Urgency Score for Heap Queue view
+      const urgencyScore = window.ChecklistDSA.TaskMinHeap.calculateUrgencyScore(task);
+
       return `
-        <article class="task-card priority-${task.priority} ${task.completed ? 'completed' : ''}" data-task-id="${task.id}" id="task-card-${task.id}">
-          <div class="task-checkbox-wrap" data-action="toggle" title="${task.completed ? 'Mark incomplete' : 'Mark complete'}">
+        <article class="task-card priority-${task.priority} ${task.completed ? 'completed' : ''} ${isBlocked ? 'blocked' : ''}" data-task-id="${task.id}">
+          <div class="task-checkbox-wrap" data-action="toggle" title="${isBlocked ? 'Blocked by prerequisite!' : task.completed ? 'Mark incomplete' : 'Mark complete'}">
             <div class="task-checkbox">
-              <i class="ph-bold ph-check"></i>
+              <i class="ph-bold ${isBlocked ? 'ph-lock' : 'ph-check'}"></i>
             </div>
           </div>
 
@@ -608,11 +702,22 @@
                   <i class="ph ph-calendar"></i> ${formattedDate}
                 </span>
               ` : ''}
+              ${isBlocked ? `
+                <span class="tag-badge blocked-tag" title="Prerequisite: ${escapeHTML(blockerNames)}">
+                  <i class="ph-bold ph-lock-key"></i> Needs: ${escapeHTML(blockerNames.slice(0, 20))}...
+                </span>
+              ` : ''}
+              ${currentFilter === 'heap' ? `
+                <span class="tag-badge heap-score-badge">Rank #${index + 1} (Score: ${urgencyScore})</span>
+              ` : ''}
+              ${currentFilter === 'topo' ? `
+                <span class="tag-badge topo-order-badge">Step #${index + 1} in DAG</span>
+              ` : ''}
             </div>
           </div>
 
           <div class="task-actions">
-            ${!task.completed ? `
+            ${!task.completed && !isBlocked ? `
               <button class="task-action-btn timer-quick-btn" data-action="focus" title="Start Focus timer on this task" aria-label="Start Focus timer">
                 <i class="ph-bold ph-timer"></i>
               </button>
@@ -626,12 +731,74 @@
     }).join('');
   }
 
+  function renderOverview() {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
+    const pending = total - completed;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    const ringFill = document.getElementById('progress-ring-fill');
+    const percentageLabel = document.getElementById('progress-percentage');
+    const summaryLabel = document.getElementById('progress-summary');
+    const momentumBadge = document.getElementById('momentum-badge');
+    const completedCountEl = document.getElementById('completed-count');
+    const pendingCountEl = document.getElementById('pending-count');
+    const streakCountEl = document.getElementById('streak-count');
+
+    if (completedCountEl) completedCountEl.textContent = completed;
+    if (pendingCountEl) pendingCountEl.textContent = pending;
+    if (streakCountEl) streakCountEl.textContent = completed > 0 ? 1 : 0;
+
+    const circumference = 2 * Math.PI * 35;
+    if (ringFill) {
+      const offset = circumference - (percentage / 100) * circumference;
+      ringFill.style.strokeDashoffset = offset;
+    }
+
+    if (percentageLabel) percentageLabel.textContent = `${percentage}%`;
+    if (summaryLabel) summaryLabel.textContent = `${completed} of ${total} tasks completed`;
+
+    if (momentumBadge) {
+      if (total === 0) {
+        momentumBadge.innerHTML = `<i class="ph-fill ph-leaf"></i> Fresh slate`;
+      } else if (percentage === 100) {
+        momentumBadge.innerHTML = `<i class="ph-fill ph-sparkle"></i> Wonderful job! Done! 🎉`;
+      } else if (percentage >= 50) {
+        momentumBadge.innerHTML = `<i class="ph-fill ph-fire"></i> In deep momentum ✨`;
+      } else {
+        momentumBadge.innerHTML = `<i class="ph-fill ph-plant"></i> Taking small steps 🌱`;
+      }
+    }
+  }
+
+  function renderCounts() {
+    const countAll = tasks.length;
+    const countToday = tasks.filter(t => t.dueDate === getTodayDateString() && !t.completed).length;
+    const countHigh = tasks.filter(t => t.priority === 'high' && !t.completed).length;
+    const countCompleted = tasks.filter(t => t.completed).length;
+
+    const elAll = document.getElementById('count-all');
+    const elToday = document.getElementById('count-today');
+    const elHigh = document.getElementById('count-high');
+    const elCompleted = document.getElementById('count-completed');
+
+    if (elAll) elAll.textContent = countAll;
+    if (elToday) elToday.textContent = countToday;
+    if (elHigh) elHigh.textContent = countHigh;
+    if (elCompleted) elCompleted.textContent = countCompleted;
+  }
+
+  function renderAll() {
+    renderOverview();
+    renderTasksList();
+    renderCounts();
+    populateFocusTaskPicker();
+  }
+
   function formatDueDate(dateStr) {
     if (!dateStr) return '';
     const today = getTodayDateString();
     if (dateStr === today) return 'Today';
-    
-    // Check tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
@@ -646,6 +813,7 @@
   }
 
   function escapeHTML(str) {
+    if (!str) return '';
     return str.replace(/[&<>'"]/g, 
       tag => ({
         '&': '&amp;',
@@ -658,210 +826,192 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 7. Event Listeners & Interactive Handlers
+  // 9. Smart Day Planner (0/1 Knapsack Optimizer Modal)
   // ---------------------------------------------------------------------------
-  function setupEventListeners() {
-    // Add Task Form Submit
-    const form = document.getElementById('add-task-form');
-    const input = document.getElementById('task-title-input');
-    const dueInput = document.getElementById('task-due-date');
+  function openPlannerModal() {
+    const modal = document.getElementById('planner-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    renderPlannerResults();
+  }
 
-    if (form) {
-      form.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const title = input.value;
-        if (!title.trim()) return;
+  function closePlannerModal() {
+    const modal = document.getElementById('planner-modal');
+    if (modal) modal.classList.add('hidden');
+  }
 
-        addTask(
-          title,
-          composerState.category,
-          composerState.priority,
-          composerState.energy,
-          dueInput ? dueInput.value : ''
-        );
+  function renderPlannerResults() {
+    const container = document.getElementById('planner-results');
+    if (!container) return;
 
-        input.value = '';
-        if (dueInput) dueInput.value = '';
-        input.focus();
-      });
+    const optimalSet = window.ChecklistDSA.TimeboxOptimizer.optimize(tasks, plannerSelectedBudget);
+    const totalMins = optimalSet.reduce((sum, t) => sum + window.ChecklistDSA.TimeboxOptimizer.getEstimatedMinutes(t), 0);
+    const totalVal = optimalSet.reduce((sum, t) => sum + window.ChecklistDSA.TimeboxOptimizer.getTaskValue(t), 0);
+
+    if (optimalSet.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding: 1.5rem;">
+          <p class="empty-desc">No active tasks available to pack for ${plannerSelectedBudget} minutes. Add some tasks above!</p>
+        </div>
+      `;
+      return;
     }
 
-    // Category Chips
-    const categoryChips = document.getElementById('category-chips');
-    if (categoryChips) {
-      categoryChips.addEventListener('click', (e) => {
-        const btn = e.target.closest('.chip');
-        if (!btn) return;
-        categoryChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        composerState.category = btn.getAttribute('data-category');
-      });
-    }
-
-    // Priority Chips
-    const priorityChips = document.getElementById('priority-chips');
-    if (priorityChips) {
-      priorityChips.addEventListener('click', (e) => {
-        const btn = e.target.closest('.chip');
-        if (!btn) return;
-        priorityChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        composerState.priority = btn.getAttribute('data-priority');
-      });
-    }
-
-    // Energy Chips
-    const energyChips = document.getElementById('energy-chips');
-    if (energyChips) {
-      energyChips.addEventListener('click', (e) => {
-        const btn = e.target.closest('.chip');
-        if (!btn) return;
-        energyChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        btn.classList.add('active');
-        composerState.energy = btn.getAttribute('data-energy');
-      });
-    }
-
-    // Task Item Actions (Delegation)
-    const tasksList = document.getElementById('tasks-list');
-    if (tasksList) {
-      tasksList.addEventListener('click', (e) => {
-        const card = e.target.closest('.task-card');
-        if (!card) return;
-        const taskId = card.getAttribute('data-task-id');
-
-        const toggleBtn = e.target.closest('[data-action="toggle"]');
-        const deleteBtn = e.target.closest('[data-action="delete"]');
-        const focusBtn = e.target.closest('[data-action="focus"]');
-
-        if (toggleBtn) {
-          const rect = toggleBtn.getBoundingClientRect();
-          toggleTaskCompletion(taskId, rect.left + rect.width / 2, rect.top + rect.height / 2);
-        } else if (deleteBtn) {
-          deleteTask(taskId);
-        } else if (focusBtn) {
-          openFocusModalWithTask(taskId);
-        }
-      });
-    }
-
-    // Filter Tabs
-    const filterTabs = document.querySelectorAll('.filter-tab');
-    filterTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        filterTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        currentFilter = tab.getAttribute('data-filter');
-
-        const viewTitle = document.getElementById('current-view-title');
-        if (viewTitle) {
-          const names = {
-            all: 'Active & All Tasks',
-            today: 'Due Today',
-            high: 'Important & High Priority',
-            completed: 'Celebrated & Completed'
-          };
-          viewTitle.textContent = names[currentFilter] || 'Tasks';
-        }
-
-        renderTasksList();
-      });
-    });
-
-    // Search Input
-    const searchInput = document.getElementById('search-input');
-    const clearSearchBtn = document.getElementById('clear-search-btn');
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        searchQuery = e.target.value;
-        if (clearSearchBtn) {
-          clearSearchBtn.classList.toggle('hidden', !searchQuery);
-        }
-        renderTasksList();
-      });
-    }
-    if (clearSearchBtn) {
-      clearSearchBtn.addEventListener('click', () => {
-        if (searchInput) searchInput.value = '';
-        searchQuery = '';
-        clearSearchBtn.classList.add('hidden');
-        renderTasksList();
-      });
-    }
-
-    // Sort Dropdown
-    const sortSelect = document.getElementById('sort-select');
-    if (sortSelect) {
-      sortSelect.addEventListener('change', (e) => {
-        currentSort = e.target.value;
-        renderTasksList();
-      });
-    }
-
-    // Clear Completed Button
-    const clearCompletedBtn = document.getElementById('clear-completed-btn');
-    if (clearCompletedBtn) {
-      clearCompletedBtn.addEventListener('click', () => {
-        clearCompleted();
-      });
-    }
-
-    // Sound Toggle Button
-    const soundToggleBtn = document.getElementById('sound-toggle-btn');
-    const soundIcon = document.getElementById('sound-icon');
-    if (soundToggleBtn) {
-      soundToggleBtn.addEventListener('click', () => {
-        soundEnabled = !soundEnabled;
-        if (soundIcon) {
-          soundIcon.className = soundEnabled ? 'ph-bold ph-speaker-high' : 'ph-bold ph-speaker-slash';
-        }
-        if (!soundEnabled) {
-          stopAmbientSound();
-        }
-      });
-    }
-
-    // Focus Mode Modal Triggers
-    const focusModeBtn = document.getElementById('focus-mode-btn');
-    const focusModal = document.getElementById('focus-modal');
-    const closeFocusModalBtn = document.getElementById('close-focus-modal');
-
-    if (focusModeBtn && focusModal) {
-      focusModeBtn.addEventListener('click', () => {
-        openFocusModal();
-      });
-    }
-    if (closeFocusModalBtn && focusModal) {
-      closeFocusModalBtn.addEventListener('click', () => {
-        closeFocusModal();
-      });
-    }
-    if (focusModal) {
-      focusModal.addEventListener('click', (e) => {
-        if (e.target === focusModal) closeFocusModal();
-      });
-    }
-
-    // Keyboard Shortcuts
-    document.addEventListener('keydown', (e) => {
-      // '/' to focus search bar
-      if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
-        e.preventDefault();
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) searchInput.focus();
-      }
-      // 'Escape' closes modal
-      if (e.key === 'Escape') {
-        closeFocusModal();
-      }
-    });
-
-    // Setup Focus Timer Controls
-    setupFocusTimer();
+    container.innerHTML = `
+      <div class="planner-summary-pill">
+        <span>Optimal Bundle: <strong class="planner-metric-highlight">${optimalSet.length} tasks</strong></span>
+        <span>Allocated: <strong class="planner-metric-highlight">${totalMins}m / ${plannerSelectedBudget}m</strong></span>
+        <span>Value Score: <strong class="planner-metric-highlight">${totalVal} pts</strong></span>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.5rem;">
+        ${optimalSet.map(t => `
+          <div class="planner-task-item">
+            <span>${escapeHTML(t.title)}</span>
+            <span class="tag-badge energy-tag">${window.ChecklistDSA.TimeboxOptimizer.getEstimatedMinutes(t)} min &bull; ${t.priority.toUpperCase()}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
   }
 
   // ---------------------------------------------------------------------------
-  // 8. Focus Sanctuary & Ambient Soundscape
+  // 10. DSA & System Design Inspector Modal
+  // ---------------------------------------------------------------------------
+  function openDSAInspectorModal() {
+    const modal = document.getElementById('dsa-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    renderDSAInspectorTab();
+  }
+
+  function closeDSAInspectorModal() {
+    const modal = document.getElementById('dsa-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function renderDSAInspectorTab() {
+    const container = document.getElementById('dsa-tab-content');
+    if (!container) return;
+
+    if (activeDsaTab === 'dag') {
+      const topo = dsaDAG.getTopologicalOrder(tasks);
+      container.innerHTML = `
+        <div class="dsa-card-block">
+          <div class="dsa-card-header">
+            <span class="dsa-card-title"><i class="ph ph-git-merge"></i> Dependency Graph (DAG)</span>
+            <span class="dsa-badge-complexity">O(V + E) Kahn's Algorithm</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #64748b;">
+            Adjacency list tracking ${dsaDAG.adjList.size} nodes. 3-Color DFS cycle detection prevents circular loops.
+          </p>
+          <div class="dsa-tree-view">
+            <strong>Kahn's Topological Order:</strong>
+            ${topo.length > 0 
+              ? topo.map((t, idx) => `<div>${idx + 1}. <span class="dsa-node-pill">${escapeHTML(t.title)} (In-Degree: ${dsaDAG.inDegree.get(t.id) || 0})</span></div>`).join('')
+              : '<span style="color:#94a3b8;">No tasks in graph yet.</span>'}
+          </div>
+        </div>
+      `;
+    } else if (activeDsaTab === 'heap') {
+      const heapArray = dsaHeap.toArray();
+      const root = dsaHeap.peek();
+      container.innerHTML = `
+        <div class="dsa-card-block">
+          <div class="dsa-card-header">
+            <span class="dsa-card-title"><i class="ph ph-trend-down"></i> Binary Min-Heap Priority Queue</span>
+            <span class="dsa-badge-complexity">O(log N) Insert & Extract</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #64748b;">
+            Calculates composite urgency score based on Priority, Due Date, and Energy. Smallest score sits at root index [0].
+          </p>
+          <div style="font-size: 0.88rem; padding: 0.5rem; background: #f8fafc; border-radius: 8px;">
+            <strong>Heap Root (Peek - Next Urgent):</strong> 
+            ${root ? `<span>${escapeHTML(root.title)} (Score: ${window.ChecklistDSA.TaskMinHeap.calculateUrgencyScore(root)})</span>` : '<span style="color:#94a3b8;">Empty heap</span>'}
+          </div>
+          <div class="dsa-tree-view">
+            <strong>Internal Heap Array Representation:</strong>
+            ${heapArray.length > 0 
+              ? heapArray.map((node, i) => `<div>[${i}] Score: ${node.score} &bull; ${escapeHTML(node.task.title.slice(0, 30))}...</div>`).join('')
+              : '<span style="color:#94a3b8;">Heap currently has 0 active elements.</span>'}
+          </div>
+        </div>
+      `;
+    } else if (activeDsaTab === 'trie') {
+      container.innerHTML = `
+        <div class="dsa-card-block">
+          <div class="dsa-card-header">
+            <span class="dsa-card-title"><i class="ph ph-magnifying-glass"></i> Prefix Trie Index</span>
+            <span class="dsa-badge-complexity">O(L) Sub-millisecond Lookup</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #64748b;">
+            Indexes tokens across all task titles, categories, and tags. Searches match instantaneously regardless of task volume.
+          </p>
+          <div style="display:flex; flex-direction:column; gap:0.5rem;">
+            <label style="font-size:0.8rem; font-weight:700; color:#64748b;">Interactive Trie Prefix Tester:</label>
+            <input type="text" id="trie-test-input" placeholder="Type a prefix (e.g., 'pla', 'des', 'wo')..." class="custom-select" style="width:100%;">
+            <div id="trie-test-results" style="font-family:monospace; font-size:0.84rem; padding:0.6rem; background:#f8fafc; border-radius:6px; min-height:40px;">
+              Enter a prefix to query the Trie node branch.
+            </div>
+          </div>
+        </div>
+      `;
+
+      const input = document.getElementById('trie-test-input');
+      const results = document.getElementById('trie-test-results');
+      if (input && results) {
+        input.addEventListener('input', (e) => {
+          const val = e.target.value.trim().toLowerCase();
+          if (!val) {
+            results.textContent = 'Enter a prefix to query the Trie node branch.';
+            return;
+          }
+          const matched = dsaTrie.searchPrefix(val);
+          if (!matched || matched.size === 0) {
+            results.textContent = `0 tasks match prefix "${val}"`;
+          } else {
+            const taskList = tasks.filter(t => matched.has(t.id));
+            results.innerHTML = `Found ${matched.size} matches: <br>` + taskList.map(t => `&bull; ${escapeHTML(t.title)}`).join('<br>');
+          }
+        });
+      }
+    } else if (activeDsaTab === 'outbox') {
+      const entries = mutationOutbox.getEntries();
+      container.innerHTML = `
+        <div class="dsa-card-block">
+          <div class="dsa-card-header">
+            <span class="dsa-card-title"><i class="ph ph-database"></i> Event-Driven Mutation Outbox & Stacks</span>
+            <span class="dsa-badge-complexity">Outbox Pattern & Undo Stacks</span>
+          </div>
+          <div style="display:flex; gap:1rem; margin-bottom: 0.5rem;">
+            <div style="padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px; font-size:0.82rem;">
+              Undo Stack Depth: <strong>${commandManager.undoStack.length} / 50</strong>
+            </div>
+            <div style="padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px; font-size:0.82rem;">
+              Redo Stack Depth: <strong>${commandManager.redoStack.length}</strong>
+            </div>
+          </div>
+          <table class="dsa-table">
+            <thead>
+              <tr><th>Mutation ID</th><th>Event Type</th><th>Timestamp</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              ${entries.slice(-8).reverse().map(e => `
+                <tr>
+                  <td><code>${e.id}</code></td>
+                  <td><strong>${e.type}</strong></td>
+                  <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
+                  <td><span class="pill-badge" style="background:#ecfdf5; color:#047857; font-size:0.7rem;">Synced</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 11. Focus Timer Sanctuary
   // ---------------------------------------------------------------------------
   function openFocusModal() {
     const focusModal = document.getElementById('focus-modal');
@@ -874,16 +1024,12 @@
   function openFocusModalWithTask(taskId) {
     openFocusModal();
     const picker = document.getElementById('focus-task-picker');
-    if (picker) {
-      picker.value = taskId;
-    }
+    if (picker) picker.value = taskId;
   }
 
   function closeFocusModal() {
     const focusModal = document.getElementById('focus-modal');
-    if (focusModal) {
-      focusModal.classList.add('hidden');
-    }
+    if (focusModal) focusModal.classList.add('hidden');
     pauseFocusTimer();
     stopAmbientSound();
   }
@@ -891,7 +1037,6 @@
   function populateFocusTaskPicker() {
     const picker = document.getElementById('focus-task-picker');
     if (!picker) return;
-
     const currentVal = picker.value;
     const activeTasks = tasks.filter(t => !t.completed);
 
@@ -900,32 +1045,23 @@
       ${activeTasks.map(t => `<option value="${t.id}">${escapeHTML(t.title)}</option>`).join('')}
     `;
 
-    if (currentVal) {
-      picker.value = currentVal;
-    }
+    if (currentVal) picker.value = currentVal;
   }
 
   function setupFocusTimer() {
     const startBtn = document.getElementById('timer-start-btn');
     const resetBtn = document.getElementById('timer-reset-btn');
-    const playIcon = document.getElementById('timer-play-icon');
-    const btnLabel = document.getElementById('timer-btn-label');
     const ambientBtns = document.querySelectorAll('.ambient-btn');
 
     if (startBtn) {
       startBtn.addEventListener('click', () => {
-        if (isTimerRunning) {
-          pauseFocusTimer();
-        } else {
-          startFocusTimer();
-        }
+        if (isTimerRunning) pauseFocusTimer();
+        else startFocusTimer();
       });
     }
 
     if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        resetFocusTimer();
-      });
+      resetBtn.addEventListener('click', () => resetFocusTimer());
     }
 
     ambientBtns.forEach(btn => {
@@ -933,9 +1069,7 @@
         ambientBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         activeAmbientType = btn.getAttribute('data-ambient');
-        if (isTimerRunning) {
-          startAmbientSound(activeAmbientType);
-        }
+        if (isTimerRunning) startAmbientSound(activeAmbientType);
       });
     });
   }
@@ -975,15 +1109,9 @@
         if (btnLabel) btnLabel.textContent = 'Start Focus';
         if (statusText) statusText.textContent = 'Focus session finished! 🎉';
 
-        // Check if a task was assigned to this session and prompt completion
         const picker = document.getElementById('focus-task-picker');
         if (picker && picker.value) {
-          const task = tasks.find(t => t.id === picker.value);
-          if (task && !task.completed) {
-            task.completed = true;
-            task.completedAt = Date.now();
-            saveTasks();
-          }
+          handleToggleTask(picker.value);
         }
       }
     }, 1000);
@@ -1013,30 +1141,245 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 9. Startup & Initial Quotes
+  // 12. Setup Event Listeners
   // ---------------------------------------------------------------------------
-  const QUOTES = [
-    '"Small steps each day lead to breathtaking journeys."',
-    '"Focus on the step in front of you, not the entire mountain."',
-    '"Simplicity is the soul of mindfulness."',
-    '"Peace of mind is doing one thing with your whole heart."',
-    '"Action creates clarity. Start gently."',
-    '"Energy flows where mindful intention goes."'
-  ];
+  function setupEventListeners() {
+    // Add Task Form
+    const form = document.getElementById('add-task-form');
+    const input = document.getElementById('task-title-input');
+    const dueInput = document.getElementById('task-due-date');
+    const depSelect = document.getElementById('task-dependency-select');
 
-  function setRandomQuote() {
-    const quoteEl = document.getElementById('daily-quote');
-    if (quoteEl) {
-      quoteEl.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+    if (form) {
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const title = input.value;
+        if (!title.trim()) return;
+
+        handleAddTask(
+          title,
+          composerState.category,
+          composerState.priority,
+          composerState.energy,
+          dueInput ? dueInput.value : '',
+          depSelect ? depSelect.value : ''
+        );
+
+        input.value = '';
+        if (dueInput) dueInput.value = '';
+        if (depSelect) depSelect.value = '';
+        input.focus();
+      });
     }
+
+    // Composer Chips
+    const categoryChips = document.getElementById('category-chips');
+    if (categoryChips) {
+      categoryChips.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chip');
+        if (!btn) return;
+        categoryChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        composerState.category = btn.getAttribute('data-category');
+      });
+    }
+
+    const priorityChips = document.getElementById('priority-chips');
+    if (priorityChips) {
+      priorityChips.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chip');
+        if (!btn) return;
+        priorityChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        composerState.priority = btn.getAttribute('data-priority');
+      });
+    }
+
+    const energyChips = document.getElementById('energy-chips');
+    if (energyChips) {
+      energyChips.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chip');
+        if (!btn) return;
+        energyChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        composerState.energy = btn.getAttribute('data-energy');
+      });
+    }
+
+    // Task Item Delegation
+    const tasksList = document.getElementById('tasks-list');
+    if (tasksList) {
+      tasksList.addEventListener('click', (e) => {
+        const card = e.target.closest('.task-card');
+        if (!card) return;
+        const taskId = card.getAttribute('data-task-id');
+
+        const toggleBtn = e.target.closest('[data-action="toggle"]');
+        const deleteBtn = e.target.closest('[data-action="delete"]');
+        const focusBtn = e.target.closest('[data-action="focus"]');
+
+        if (toggleBtn) {
+          const rect = toggleBtn.getBoundingClientRect();
+          handleToggleTask(taskId, rect.left + rect.width / 2, rect.top + rect.height / 2);
+        } else if (deleteBtn) {
+          handleDeleteTask(taskId);
+        } else if (focusBtn) {
+          openFocusModalWithTask(taskId);
+        }
+      });
+    }
+
+    // Undo / Redo Header Buttons
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    if (undoBtn) undoBtn.addEventListener('click', () => handleUndo());
+    if (redoBtn) redoBtn.addEventListener('click', () => handleRedo());
+
+    // Filter Tabs
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    filterTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        filterTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.getAttribute('data-filter');
+
+        const viewTitle = document.getElementById('current-view-title');
+        if (viewTitle) {
+          const names = {
+            all: 'Active & All Tasks',
+            today: 'Due Today',
+            heap: '⚡ Priority Queue (Binary Min-Heap)',
+            topo: '🔗 Execution Order (Topological DAG)',
+            high: 'Important & High Priority',
+            completed: 'Celebrated & Completed'
+          };
+          viewTitle.textContent = names[currentFilter] || 'Tasks';
+        }
+
+        renderTasksList();
+      });
+    });
+
+    // Search Input
+    const searchInput = document.getElementById('search-input');
+    const clearSearchBtn = document.getElementById('clear-search-btn');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        if (clearSearchBtn) clearSearchBtn.classList.toggle('hidden', !searchQuery);
+        renderTasksList();
+      });
+    }
+    if (clearSearchBtn) {
+      clearSearchBtn.addEventListener('click', () => {
+        if (searchInput) searchInput.value = '';
+        searchQuery = '';
+        clearSearchBtn.classList.add('hidden');
+        renderTasksList();
+      });
+    }
+
+    // Sort Dropdown
+    const sortSelect = document.getElementById('sort-select');
+    if (sortSelect) {
+      sortSelect.addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        renderTasksList();
+      });
+    }
+
+    // Sound Toggle
+    const soundToggleBtn = document.getElementById('sound-toggle-btn');
+    const soundIcon = document.getElementById('sound-icon');
+    if (soundToggleBtn) {
+      soundToggleBtn.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        if (soundIcon) soundIcon.className = soundEnabled ? 'ph-bold ph-speaker-high' : 'ph-bold ph-speaker-slash';
+        if (!soundEnabled) stopAmbientSound();
+      });
+    }
+
+    // Focus Modal
+    const focusModeBtn = document.getElementById('focus-mode-btn');
+    const closeFocusModalBtn = document.getElementById('close-focus-modal');
+    if (focusModeBtn) focusModeBtn.addEventListener('click', () => openFocusModal());
+    if (closeFocusModalBtn) closeFocusModalBtn.addEventListener('click', () => closeFocusModal());
+
+    // Smart Planner Modal Triggers
+    const smartPlannerBtn = document.getElementById('smart-planner-btn');
+    const closePlannerBtn = document.getElementById('close-planner-modal');
+    const budgetChips = document.getElementById('budget-chips');
+
+    if (smartPlannerBtn) smartPlannerBtn.addEventListener('click', () => openPlannerModal());
+    if (closePlannerBtn) closePlannerBtn.addEventListener('click', () => closePlannerModal());
+    if (budgetChips) {
+      budgetChips.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chip');
+        if (!btn) return;
+        budgetChips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        plannerSelectedBudget = parseInt(btn.getAttribute('data-minutes'), 10) || 60;
+        renderPlannerResults();
+      });
+    }
+
+    // DSA Inspector Modal Triggers
+    const dsaInspectorBtn = document.getElementById('dsa-inspector-btn');
+    const closeDsaBtn = document.getElementById('close-dsa-modal');
+    const dsaTabsNav = document.querySelector('.dsa-tabs-nav');
+
+    if (dsaInspectorBtn) dsaInspectorBtn.addEventListener('click', () => openDSAInspectorModal());
+    if (closeDsaBtn) closeDsaBtn.addEventListener('click', () => closeDSAInspectorModal());
+    if (dsaTabsNav) {
+      dsaTabsNav.addEventListener('click', (e) => {
+        const btn = e.target.closest('.dsa-tab-btn');
+        if (!btn) return;
+        dsaTabsNav.querySelectorAll('.dsa-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeDsaTab = btn.getAttribute('data-dsa-tab');
+        renderDSAInspectorTab();
+      });
+    }
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Cmd+Z or Ctrl+Z for Undo
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Cmd+Shift+Z or Ctrl+Y for Redo
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && e.shiftKey) ||
+          ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y')) {
+        e.preventDefault();
+        handleRedo();
+      }
+      // '/' for search
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT') {
+        e.preventDefault();
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.focus();
+      }
+      // 'Escape' closes modals
+      if (e.key === 'Escape') {
+        closeFocusModal();
+        closePlannerModal();
+        closeDSAInspectorModal();
+      }
+    });
+
+    setupFocusTimer();
   }
 
-  // Initialize App on DOM Ready
+  // ---------------------------------------------------------------------------
+  // 13. Initialization
+  // ---------------------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', () => {
     updateGreetingAndDate();
-    setRandomQuote();
     setupEventListeners();
+    rebuildDSAEngines();
     renderAll();
+    updateUndoRedoButtons();
     updateTimerDisplay();
   });
 

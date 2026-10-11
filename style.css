@@ -1436,3 +1436,339 @@ body {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   DSA & System Design Engine Enhancements
+   ========================================================================== */
+
+/* Undo / Redo & Tech Badges */
+.icon-control-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+
+.icon-control-btn.tech-badge {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.icon-control-btn.tech-badge:hover {
+  background: #dcfce7;
+  box-shadow: 0 4px 12px -2px rgba(22, 163, 74, 0.25);
+}
+
+/* Dependency Option in Composer */
+.dependency-group {
+  position: relative;
+}
+
+.dependency-select {
+  max-width: 170px;
+  font-size: 0.78rem;
+  padding: 0.3rem 0.65rem;
+}
+
+/* Blocked Task (DAG Prerequisite not met) */
+.task-card.blocked {
+  background: rgba(254, 252, 232, 0.75);
+  border-style: dashed;
+  border-color: #fde047;
+}
+
+.task-card.blocked .task-checkbox-wrap {
+  cursor: not-allowed;
+}
+
+.task-card.blocked .task-checkbox {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.task-card.blocked .task-checkbox i {
+  opacity: 1;
+  transform: scale(0.9);
+}
+
+.tag-badge.blocked-tag {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+}
+
+.tag-badge.topo-order-badge {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+  font-family: monospace;
+}
+
+.tag-badge.heap-score-badge {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  font-family: monospace;
+}
+
+/* Smart Day Planner Modal */
+.planner-modal-card {
+  max-width: 580px;
+}
+
+.planner-modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modal-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.time-budget-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.time-budget-selector label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.budget-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.planner-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.planner-summary-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.planner-metric-highlight {
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+.planner-task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.9rem;
+  background: #ffffff;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* DSA Inspector Modal */
+.dsa-modal-card {
+  max-width: 720px;
+  width: 95%;
+}
+
+.dsa-modal-body {
+  padding: 1.25rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dsa-tabs-nav {
+  display: flex;
+  gap: 0.4rem;
+  background: var(--surface-muted);
+  padding: 0.35rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--surface-border);
+  overflow-x: auto;
+}
+
+.dsa-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.dsa-tab-btn.active {
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.dsa-tab-content {
+  min-height: 240px;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dsa-card-block {
+  background: #ffffff;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dsa-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--surface-border-subtle);
+  padding-bottom: 0.6rem;
+}
+
+.dsa-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-primary);
+}
+
+.dsa-badge-complexity {
+  font-family: monospace;
+  font-size: 0.76rem;
+  padding: 0.15rem 0.5rem;
+  background: var(--pastel-violet-bg);
+  color: var(--pastel-violet-text);
+  border-radius: var(--radius-full);
+  font-weight: 700;
+}
+
+.dsa-tree-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
+.dsa-node-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-xs);
+}
+
+.dsa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.dsa-table th, .dsa-table td {
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dsa-table th {
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+/* Toast Notification */
+.toast-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  background: rgba(30, 41, 59, 0.95);
+  color: #ffffff;
+  padding: 0.75rem 1.15rem;
+  border-radius: var(--radius-md);
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25);
+  animation: toastSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+}
+
+@keyframes toastSlide {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast-undo-btn {
+  background: #6366f1;
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.toast-undo-btn:hover {
+  background: #4f46e5;
+}
