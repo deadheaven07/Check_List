@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Klaro - An elegant, easy-to-use to-do list with a radiant light aesthetic, mindful focus, and intuitive productivity.">
+  <title>Klaro &bull; Clear Mind & Daily Flow</title>
+  
+  <!-- Modern Google Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Phosphor Icons for crisp, lightweight UI icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient Radiant Mesh Background -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="ambient-glow glow-3"></div>
+
+  <!-- Confetti Canvas for Celebratory Micro-interactions -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="app-layout">
+    <!-- Main Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-badge">
+          <div class="brand-logo-glow"></div>
+          <i class="ph-bold ph-sparkle brand-icon"></i>
+        </div>
+        <div class="brand-info">
+          <h1 class="brand-name">Klaro</h1>
+          <p class="brand-tagline" id="live-greeting">Good day, let's make it wonderful</p>
+        </div>
+      </div>
+
+      <div class="header-controls">
+        <div class="header-date" id="current-date">
+          <i class="ph ph-calendar-blank"></i>
+          <span id="date-text">Today</span>
+        </div>
+
+        <button id="sound-toggle-btn" class="icon-control-btn" title="Toggle audio feedback" aria-label="Toggle Sound Effects">
+          <i class="ph-bold ph-speaker-high" id="sound-icon"></i>
+          <span class="btn-label">Sound</span>
+        </button>
+
+        <button id="focus-mode-btn" class="icon-control-btn highlight" title="Open Focus Timer" aria-label="Open Focus Timer">
+          <i class="ph-bold ph-timer"></i>
+          <span class="btn-label">Focus</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Bento Overview / Progress Bar -->
+    <section class="overview-section" aria-label="Daily Progress Overview">
+      <!-- Progress Metric Card -->
+      <div class="bento-card progress-card">
+        <div class="progress-ring-container">
+          <svg class="progress-ring" width="84" height="84" viewBox="0 0 84 84">
+            <defs>
+              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#6366f1" />
+                <stop offset="50%" stop-color="#8b5cf6" />
+                <stop offset="100%" stop-color="#ec4899" />
+              </linearGradient>
+            </defs>
+            <circle class="ring-bg" cx="42" cy="42" r="35"></circle>
+            <circle class="ring-fill" id="progress-ring-fill" cx="42" cy="42" r="35" stroke="url(#progressGradient)"></circle>
+          </svg>
+          <div class="progress-ring-label" id="progress-percentage">0%</div>
+        </div>
+        <div class="progress-details">
+          <h2 class="card-title">Daily Momentum</h2>
+          <p class="progress-subtitle" id="progress-summary">0 of 0 tasks completed</p>
+          <div class="pill-badge" id="momentum-badge">
+            <i class="ph-fill ph-leaf"></i> Fresh start
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Bento Card -->
+      <div class="bento-card metrics-card">
+        <div class="metric-item">
+          <span class="metric-icon-wrap rose">
+            <i class="ph-bold ph-check-circle"></i>
+          </span>
+          <div class="metric-text">
+            <span class="metric-val" id="completed-count">0</span>
+            <span class="metric-desc">Finished</span>
+          </div>
+        </div>
+        <div class="metric-item">
+          <span class="metric-icon-wrap amber">
+            <i class="ph-bold ph-hourglass-high"></i>
+          </span>
+          <div class="metric-text">
+            <span class="metric-val" id="pending-count">0</span>
+            <span class="metric-desc">In Progress</span>
+          </div>
+        </div>
+        <div class="metric-item">
+          <span class="metric-icon-wrap violet">
+            <i class="ph-bold ph-fire"></i>
+          </span>
+          <div class="metric-text">
+            <span class="metric-val" id="streak-count">0</span>
+            <span class="metric-desc">Day Streak</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily Quote / Inspiring Tip Card -->
+      <div class="bento-card quote-card">
+        <div class="quote-header">
+          <i class="ph-fill ph-sun quote-icon"></i>
+          <span class="quote-tag">Daily Intention</span>
+        </div>
+        <p class="quote-text" id="daily-quote">"Small steps each day lead to breathtaking journeys."</p>
+      </div>
+    </section>
+
+    <!-- Main Content Grid -->
+    <main class="main-container">
+      <!-- Task Creation Card -->
+      <section class="task-composer-card">
+        <form id="add-task-form" class="composer-form">
+          <div class="input-primary-row">
+            <div class="input-wrapper">
+              <i class="ph ph-plus-circle input-lead-icon"></i>
+              <input 
+                type="text" 
+                id="task-title-input" 
+                placeholder="What would you like to achieve? (Press Enter to add)" 
+                required 
+                autocomplete="off"
+                maxlength="150"
+              >
+            </div>
+            <button type="submit" id="add-task-btn" class="primary-btn">
+              <span>Add Task</span>
+              <i class="ph-bold ph-arrow-right"></i>
+            </button>
+          </div>
+
+          <!-- Quick Metadata Chips Selector -->
+          <div class="composer-options-row">
+            <!-- Category Selector -->
+            <div class="option-pill-group">
+              <span class="option-label"><i class="ph ph-tag"></i> Category:</span>
+              <div class="chip-options" id="category-chips">
+                <button type="button" class="chip active" data-category="Personal">🌸 Personal</button>
+                <button type="button" class="chip" data-category="Work">💼 Work</button>
+                <button type="button" class="chip" data-category="Creative">🎨 Creative</button>
+                <button type="button" class="chip" data-category="Health">🥑 Health</button>
+              </div>
+            </div>
+
+            <!-- Priority Selector -->
+            <div class="option-pill-group">
+              <span class="option-label"><i class="ph ph-flag"></i> Priority:</span>
+              <div class="chip-options" id="priority-chips">
+                <button type="button" class="chip priority-low active" data-priority="low">Low</button>
+                <button type="button" class="chip priority-med" data-priority="medium">Medium</button>
+                <button type="button" class="chip priority-high" data-priority="high">High</button>
+              </div>
+            </div>
+
+            <!-- Energy / Effort Selector -->
+            <div class="option-pill-group">
+              <span class="option-label"><i class="ph ph-lightning"></i> Energy:</span>
+              <div class="chip-options" id="energy-chips">
+                <button type="button" class="chip active" data-energy="quick">⚡ Quick Win (5m)</button>
+                <button type="button" class="chip" data-energy="steady">☕ Steady (25m)</button>
+                <button type="button" class="chip" data-energy="deep">🔥 Deep Flow</button>
+              </div>
+            </div>
+
+            <!-- Due Date Picker -->
+            <div class="option-pill-group date-input-group">
+              <span class="option-label"><i class="ph ph-calendar"></i> Due:</span>
+              <input type="date" id="task-due-date" class="date-input">
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <!-- Task Filtering & Search Bar -->
+      <section class="toolbar-section">
+        <!-- Filter Tabs -->
+        <nav class="filter-tabs" aria-label="Filter tasks">
+          <button class="filter-tab active" data-filter="all">
+            All <span class="tab-count" id="count-all">0</span>
+          </button>
+          <button class="filter-tab" data-filter="today">
+            Today <span class="tab-count" id="count-today">0</span>
+          </button>
+          <button class="filter-tab" data-filter="high">
+            Important <span class="tab-count" id="count-high">0</span>
+          </button>
+          <button class="filter-tab" data-filter="completed">
+            Completed <span class="tab-count" id="count-completed">0</span>
+          </button>
+        </nav>
+
+        <!-- Search & Filter Controls -->
+        <div class="search-and-controls">
+          <div class="search-box">
+            <i class="ph ph-magnifying-glass search-icon"></i>
+            <input type="text" id="search-input" placeholder="Search tasks...">
+            <button id="clear-search-btn" class="clear-search-btn hidden" aria-label="Clear search">
+              <i class="ph-bold ph-x"></i>
+            </button>
+          </div>
+
+          <div class="dropdown-wrapper">
+            <select id="sort-select" class="custom-select" aria-label="Sort tasks">
+              <option value="created-desc">Newest First</option>
+              <option value="priority-desc">Highest Priority</option>
+              <option value="due-date">Due Date</option>
+              <option value="title-asc">Alphabetical</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Active Tasks Section -->
+      <section class="tasks-container">
+        <!-- Quick Action Bar -->
+        <div class="tasks-header-row">
+          <div class="tasks-section-title">
+            <h3 id="current-view-title">Active Tasks</h3>
+            <span class="active-badge" id="visible-tasks-counter">0 tasks</span>
+          </div>
+
+          <div class="tasks-quick-actions">
+            <button id="clear-completed-btn" class="action-ghost-btn">
+              <i class="ph ph-trash"></i>
+              <span>Clear Done</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Task Items List -->
+        <div id="tasks-list" class="tasks-list" role="list">
+          <!-- Dynamically populated via JavaScript -->
+        </div>
+
+        <!-- Empty State View -->
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-illustration">
+            <div class="empty-glow"></div>
+            <i class="ph-thin ph-sparkle empty-icon"></i>
+          </div>
+          <h4 class="empty-title">All clear & peaceful!</h4>
+          <p class="empty-desc" id="empty-state-message">Take a deep breath or add a new intention above.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>Klaro &bull; Crafted with warmth, pastel serenity & flow</p>
+    </footer>
+  </div>
+
+  <!-- Focus Timer Modal -->
+  <div id="focus-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="focus-modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <i class="ph-bold ph-hourglass-medium modal-lead-icon"></i>
+          <h3 id="focus-modal-title">Mindful Focus Sanctuary</h3>
+        </div>
+        <button id="close-focus-modal" class="modal-close-btn" aria-label="Close modal">
+          <i class="ph-bold ph-x"></i>
+        </button>
+      </div>
+
+      <div class="focus-timer-body">
+        <div class="focus-task-selector">
+          <label for="focus-task-picker">Focusing on:</label>
+          <select id="focus-task-picker" class="custom-select full-width">
+            <option value="">General deep focus session</option>
+          </select>
+        </div>
+
+        <!-- Timer Dial -->
+        <div class="timer-dial-container">
+          <div class="timer-ambient-halo"></div>
+          <div class="timer-display" id="timer-display">25:00</div>
+          <span class="timer-phase" id="timer-status-text">Ready to begin</span>
+        </div>
+
+        <!-- Ambient Sound Selection -->
+        <div class="ambient-sound-selector">
+          <span class="ambient-label"><i class="ph ph-headphones"></i> Soundscape:</span>
+          <div class="ambient-options">
+            <button class="ambient-btn active" data-ambient="none">Mute</button>
+            <button class="ambient-btn" data-ambient="rain">🌧️ Soft Rain</button>
+            <button class="ambient-btn" data-ambient="lofi">🌊 Gentle Stream</button>
+            <button class="ambient-btn" data-ambient="white">🕊️ White Hum</button>
+          </div>
+        </div>
+
+        <!-- Timer Controls -->
+        <div class="timer-controls">
+          <button id="timer-start-btn" class="primary-btn timer-btn">
+            <i class="ph-bold ph-play" id="timer-play-icon"></i>
+            <span id="timer-btn-label">Start Focus</span>
+          </button>
+          <button id="timer-reset-btn" class="action-ghost-btn timer-btn">
+            <i class="ph-bold ph-arrow-counter-clockwise"></i>
+            <span>Reset (25m)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
