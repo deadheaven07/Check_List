@@ -48,8 +48,6 @@
   let isTimerRunning = false;
   let activeAmbientType = 'none';
 
-  // Active DSA Inspector Tab
-  let activeDsaTab = 'dag';
   let plannerSelectedBudget = 60;
 
   // ---------------------------------------------------------------------------
@@ -567,24 +565,6 @@
   function getFilteredAndSortedTasks() {
     let result = [...tasks];
 
-    // DSA Custom Filters
-    if (currentFilter === 'heap') {
-      // Order directly by binary min-heap urgency score
-      const clonedHeap = new window.ChecklistDSA.TaskMinHeap();
-      tasks.filter(t => !t.completed).forEach(t => clonedHeap.insert(t));
-      const heapOrdered = [];
-      while (!clonedHeap.isEmpty()) {
-        heapOrdered.push(clonedHeap.extractMin());
-      }
-      return heapOrdered;
-    }
-
-    if (currentFilter === 'topo') {
-      // Order by Kahn's Topological Sort algorithm (prerequisites first)
-      const topoList = dsaDAG.getTopologicalOrder(tasks.filter(t => !t.completed));
-      return topoList;
-    }
-
     if (currentFilter === 'today') {
       const todayStr = getTodayDateString();
       result = result.filter(t => t.dueDate === todayStr || (!t.dueDate && !t.completed));
@@ -609,9 +589,21 @@
       }
     }
 
-    // Sorting
+    // Sorting (powered by DSA engines)
     if (currentSort === 'created-desc') {
       result.sort((a, b) => b.createdAt - a.createdAt);
+    } else if (currentSort === 'heap-urgency') {
+      // Binary Min-Heap Priority Queue algorithm under the hood
+      const clonedHeap = new window.ChecklistDSA.TaskMinHeap();
+      result.forEach(t => clonedHeap.insert(t));
+      const heapOrdered = [];
+      while (!clonedHeap.isEmpty()) {
+        heapOrdered.push(clonedHeap.extractMin());
+      }
+      result = heapOrdered;
+    } else if (currentSort === 'topo-order') {
+      // Kahn's Topological Order (prerequisites first) under the hood
+      result = dsaDAG.getTopologicalOrder(result);
     } else if (currentSort === 'priority-desc') {
       const weight = { high: 3, medium: 2, low: 1 };
       result.sort((a, b) => (weight[b.priority] || 0) - (weight[a.priority] || 0));
@@ -651,10 +643,6 @@
             emptyMsg.textContent = `No tasks matching "${searchQuery}".`;
           } else if (currentFilter === 'completed') {
             emptyMsg.textContent = 'No completed tasks yet. Check off an intention to celebrate it here!';
-          } else if (currentFilter === 'heap') {
-            emptyMsg.textContent = 'Min-Heap queue is empty! Add active tasks to schedule them.';
-          } else if (currentFilter === 'topo') {
-            emptyMsg.textContent = 'No dependency chains active.';
           } else {
             emptyMsg.textContent = 'All clear & peaceful! Take a deep breath or add a new intention above.';
           }
@@ -665,7 +653,7 @@
 
     if (emptyStateEl) emptyStateEl.classList.add('hidden');
 
-    listEl.innerHTML = filtered.map((task, index) => {
+    listEl.innerHTML = filtered.map((task) => {
       const isBlocked = !task.completed && dsaDAG.isTaskBlocked(task, tasks);
       const unmet = isBlocked ? dsaDAG.getUnmetDependencies(task, tasks) : [];
       const blockerNames = unmet.map(u => u.title).join(', ');
@@ -679,9 +667,6 @@
       let energyLabel = '⚡ Quick Win';
       if (task.energy === 'steady') energyLabel = '☕ Steady';
       if (task.energy === 'deep') energyLabel = '🔥 Deep Flow';
-
-      // Urgency Score for Heap Queue view
-      const urgencyScore = window.ChecklistDSA.TaskMinHeap.calculateUrgencyScore(task);
 
       return `
         <article class="task-card priority-${task.priority} ${task.completed ? 'completed' : ''} ${isBlocked ? 'blocked' : ''}" data-task-id="${task.id}">
@@ -704,14 +689,8 @@
               ` : ''}
               ${isBlocked ? `
                 <span class="tag-badge blocked-tag" title="Prerequisite: ${escapeHTML(blockerNames)}">
-                  <i class="ph-bold ph-lock-key"></i> Needs: ${escapeHTML(blockerNames.slice(0, 20))}...
+                  <i class="ph-bold ph-lock-key"></i> Needs: ${escapeHTML(blockerNames.length > 22 ? blockerNames.slice(0, 22) + '...' : blockerNames)}
                 </span>
-              ` : ''}
-              ${currentFilter === 'heap' ? `
-                <span class="tag-badge heap-score-badge">Rank #${index + 1} (Score: ${urgencyScore})</span>
-              ` : ''}
-              ${currentFilter === 'topo' ? `
-                <span class="tag-badge topo-order-badge">Step #${index + 1} in DAG</span>
               ` : ''}
             </div>
           </div>
@@ -846,7 +825,6 @@
 
     const optimalSet = window.ChecklistDSA.TimeboxOptimizer.optimize(tasks, plannerSelectedBudget);
     const totalMins = optimalSet.reduce((sum, t) => sum + window.ChecklistDSA.TimeboxOptimizer.getEstimatedMinutes(t), 0);
-    const totalVal = optimalSet.reduce((sum, t) => sum + window.ChecklistDSA.TimeboxOptimizer.getTaskValue(t), 0);
 
     if (optimalSet.length === 0) {
       container.innerHTML = `
@@ -859,9 +837,8 @@
 
     container.innerHTML = `
       <div class="planner-summary-pill">
-        <span>Optimal Bundle: <strong class="planner-metric-highlight">${optimalSet.length} tasks</strong></span>
-        <span>Allocated: <strong class="planner-metric-highlight">${totalMins}m / ${plannerSelectedBudget}m</strong></span>
-        <span>Value Score: <strong class="planner-metric-highlight">${totalVal} pts</strong></span>
+        <span>Recommended Tasks: <strong class="planner-metric-highlight">${optimalSet.length}</strong></span>
+        <span>Planned Time: <strong class="planner-metric-highlight">${totalMins}m / ${plannerSelectedBudget}m</strong></span>
       </div>
       <div style="display:flex; flex-direction:column; gap:0.5rem;">
         ${optimalSet.map(t => `
@@ -872,142 +849,6 @@
         `).join('')}
       </div>
     `;
-  }
-
-  // ---------------------------------------------------------------------------
-  // 10. DSA & System Design Inspector Modal
-  // ---------------------------------------------------------------------------
-  function openDSAInspectorModal() {
-    const modal = document.getElementById('dsa-modal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    renderDSAInspectorTab();
-  }
-
-  function closeDSAInspectorModal() {
-    const modal = document.getElementById('dsa-modal');
-    if (modal) modal.classList.add('hidden');
-  }
-
-  function renderDSAInspectorTab() {
-    const container = document.getElementById('dsa-tab-content');
-    if (!container) return;
-
-    if (activeDsaTab === 'dag') {
-      const topo = dsaDAG.getTopologicalOrder(tasks);
-      container.innerHTML = `
-        <div class="dsa-card-block">
-          <div class="dsa-card-header">
-            <span class="dsa-card-title"><i class="ph ph-git-merge"></i> Dependency Graph (DAG)</span>
-            <span class="dsa-badge-complexity">O(V + E) Kahn's Algorithm</span>
-          </div>
-          <p style="font-size: 0.85rem; color: #64748b;">
-            Adjacency list tracking ${dsaDAG.adjList.size} nodes. 3-Color DFS cycle detection prevents circular loops.
-          </p>
-          <div class="dsa-tree-view">
-            <strong>Kahn's Topological Order:</strong>
-            ${topo.length > 0 
-              ? topo.map((t, idx) => `<div>${idx + 1}. <span class="dsa-node-pill">${escapeHTML(t.title)} (In-Degree: ${dsaDAG.inDegree.get(t.id) || 0})</span></div>`).join('')
-              : '<span style="color:#94a3b8;">No tasks in graph yet.</span>'}
-          </div>
-        </div>
-      `;
-    } else if (activeDsaTab === 'heap') {
-      const heapArray = dsaHeap.toArray();
-      const root = dsaHeap.peek();
-      container.innerHTML = `
-        <div class="dsa-card-block">
-          <div class="dsa-card-header">
-            <span class="dsa-card-title"><i class="ph ph-trend-down"></i> Binary Min-Heap Priority Queue</span>
-            <span class="dsa-badge-complexity">O(log N) Insert & Extract</span>
-          </div>
-          <p style="font-size: 0.85rem; color: #64748b;">
-            Calculates composite urgency score based on Priority, Due Date, and Energy. Smallest score sits at root index [0].
-          </p>
-          <div style="font-size: 0.88rem; padding: 0.5rem; background: #f8fafc; border-radius: 8px;">
-            <strong>Heap Root (Peek - Next Urgent):</strong> 
-            ${root ? `<span>${escapeHTML(root.title)} (Score: ${window.ChecklistDSA.TaskMinHeap.calculateUrgencyScore(root)})</span>` : '<span style="color:#94a3b8;">Empty heap</span>'}
-          </div>
-          <div class="dsa-tree-view">
-            <strong>Internal Heap Array Representation:</strong>
-            ${heapArray.length > 0 
-              ? heapArray.map((node, i) => `<div>[${i}] Score: ${node.score} &bull; ${escapeHTML(node.task.title.slice(0, 30))}...</div>`).join('')
-              : '<span style="color:#94a3b8;">Heap currently has 0 active elements.</span>'}
-          </div>
-        </div>
-      `;
-    } else if (activeDsaTab === 'trie') {
-      container.innerHTML = `
-        <div class="dsa-card-block">
-          <div class="dsa-card-header">
-            <span class="dsa-card-title"><i class="ph ph-magnifying-glass"></i> Prefix Trie Index</span>
-            <span class="dsa-badge-complexity">O(L) Sub-millisecond Lookup</span>
-          </div>
-          <p style="font-size: 0.85rem; color: #64748b;">
-            Indexes tokens across all task titles, categories, and tags. Searches match instantaneously regardless of task volume.
-          </p>
-          <div style="display:flex; flex-direction:column; gap:0.5rem;">
-            <label style="font-size:0.8rem; font-weight:700; color:#64748b;">Interactive Trie Prefix Tester:</label>
-            <input type="text" id="trie-test-input" placeholder="Type a prefix (e.g., 'pla', 'des', 'wo')..." class="custom-select" style="width:100%;">
-            <div id="trie-test-results" style="font-family:monospace; font-size:0.84rem; padding:0.6rem; background:#f8fafc; border-radius:6px; min-height:40px;">
-              Enter a prefix to query the Trie node branch.
-            </div>
-          </div>
-        </div>
-      `;
-
-      const input = document.getElementById('trie-test-input');
-      const results = document.getElementById('trie-test-results');
-      if (input && results) {
-        input.addEventListener('input', (e) => {
-          const val = e.target.value.trim().toLowerCase();
-          if (!val) {
-            results.textContent = 'Enter a prefix to query the Trie node branch.';
-            return;
-          }
-          const matched = dsaTrie.searchPrefix(val);
-          if (!matched || matched.size === 0) {
-            results.textContent = `0 tasks match prefix "${val}"`;
-          } else {
-            const taskList = tasks.filter(t => matched.has(t.id));
-            results.innerHTML = `Found ${matched.size} matches: <br>` + taskList.map(t => `&bull; ${escapeHTML(t.title)}`).join('<br>');
-          }
-        });
-      }
-    } else if (activeDsaTab === 'outbox') {
-      const entries = mutationOutbox.getEntries();
-      container.innerHTML = `
-        <div class="dsa-card-block">
-          <div class="dsa-card-header">
-            <span class="dsa-card-title"><i class="ph ph-database"></i> Event-Driven Mutation Outbox & Stacks</span>
-            <span class="dsa-badge-complexity">Outbox Pattern & Undo Stacks</span>
-          </div>
-          <div style="display:flex; gap:1rem; margin-bottom: 0.5rem;">
-            <div style="padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px; font-size:0.82rem;">
-              Undo Stack Depth: <strong>${commandManager.undoStack.length} / 50</strong>
-            </div>
-            <div style="padding:0.5rem 0.8rem; background:#f8fafc; border-radius:8px; font-size:0.82rem;">
-              Redo Stack Depth: <strong>${commandManager.redoStack.length}</strong>
-            </div>
-          </div>
-          <table class="dsa-table">
-            <thead>
-              <tr><th>Mutation ID</th><th>Event Type</th><th>Timestamp</th><th>Status</th></tr>
-            </thead>
-            <tbody>
-              ${entries.slice(-8).reverse().map(e => `
-                <tr>
-                  <td><code>${e.id}</code></td>
-                  <td><strong>${e.type}</strong></td>
-                  <td>${new Date(e.timestamp).toLocaleTimeString()}</td>
-                  <td><span class="pill-badge" style="background:#ecfdf5; color:#047857; font-size:0.7rem;">Synced</span></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
   }
 
   // ---------------------------------------------------------------------------
@@ -1323,24 +1164,6 @@
       });
     }
 
-    // DSA Inspector Modal Triggers
-    const dsaInspectorBtn = document.getElementById('dsa-inspector-btn');
-    const closeDsaBtn = document.getElementById('close-dsa-modal');
-    const dsaTabsNav = document.querySelector('.dsa-tabs-nav');
-
-    if (dsaInspectorBtn) dsaInspectorBtn.addEventListener('click', () => openDSAInspectorModal());
-    if (closeDsaBtn) closeDsaBtn.addEventListener('click', () => closeDSAInspectorModal());
-    if (dsaTabsNav) {
-      dsaTabsNav.addEventListener('click', (e) => {
-        const btn = e.target.closest('.dsa-tab-btn');
-        if (!btn) return;
-        dsaTabsNav.querySelectorAll('.dsa-tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        activeDsaTab = btn.getAttribute('data-dsa-tab');
-        renderDSAInspectorTab();
-      });
-    }
-
     // Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
       // Cmd+Z or Ctrl+Z for Undo
@@ -1364,7 +1187,6 @@
       if (e.key === 'Escape') {
         closeFocusModal();
         closePlannerModal();
-        closeDSAInspectorModal();
       }
     });
 

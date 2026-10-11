@@ -59,7 +59,7 @@
           <span class="btn-label">Sound</span>
         </button>
 
-        <button id="smart-planner-btn" class="icon-control-btn" title="Smart Day Planner (Knapsack Optimizer)" aria-label="Smart Day Planner">
+        <button id="smart-planner-btn" class="icon-control-btn" title="Smart Day Planner" aria-label="Smart Day Planner">
           <i class="ph-bold ph-lightning"></i>
           <span class="btn-label">Planner</span>
         </button>
@@ -67,11 +67,6 @@
         <button id="focus-mode-btn" class="icon-control-btn highlight" title="Open Focus Timer" aria-label="Open Focus Timer">
           <i class="ph-bold ph-timer"></i>
           <span class="btn-label">Focus</span>
-        </button>
-
-        <button id="dsa-inspector-btn" class="icon-control-btn tech-badge" title="Open DSA & System Design Engine Inspector" aria-label="Open DSA Inspector">
-          <i class="ph-bold ph-tree-structure"></i>
-          <span class="btn-label">DSA Engine</span>
         </button>
       </div>
     </header>
@@ -227,12 +222,6 @@
           <button class="filter-tab" data-filter="today">
             Today <span class="tab-count" id="count-today">0</span>
           </button>
-          <button class="filter-tab" data-filter="heap">
-            ⚡ Heap Queue <span class="tab-count" id="count-heap">Heap</span>
-          </button>
-          <button class="filter-tab" data-filter="topo">
-            🔗 Topo DAG <span class="tab-count" id="count-topo">DAG</span>
-          </button>
           <button class="filter-tab" data-filter="high">
             Important <span class="tab-count" id="count-high">0</span>
           </button>
@@ -254,6 +243,8 @@
           <div class="dropdown-wrapper">
             <select id="sort-select" class="custom-select" aria-label="Sort tasks">
               <option value="created-desc">Newest First</option>
+              <option value="heap-urgency">Urgency First</option>
+              <option value="topo-order">Prerequisites First</option>
               <option value="priority-desc">Highest Priority</option>
               <option value="due-date">Due Date</option>
               <option value="title-asc">Alphabetical</option>
@@ -356,13 +347,13 @@
     </div>
   </div>
 
-  <!-- Smart Day Planner Modal (0/1 Knapsack Optimizer) -->
+  <!-- Smart Day Planner Modal -->
   <div id="planner-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="planner-modal-title">
     <div class="modal-card planner-modal-card">
       <div class="modal-header">
         <div class="modal-title-wrap">
           <i class="ph-bold ph-lightning modal-lead-icon"></i>
-          <h3 id="planner-modal-title">Smart Day Planner (0/1 Knapsack)</h3>
+          <h3 id="planner-modal-title">Smart Day Planner</h3>
         </div>
         <button id="close-planner-modal" class="modal-close-btn" aria-label="Close planner modal">
           <i class="ph-bold ph-x"></i>
@@ -371,11 +362,11 @@
 
       <div class="planner-modal-body">
         <p class="modal-desc">
-          Uses <strong>Dynamic Programming (0/1 Knapsack)</strong> to calculate the mathematically optimal subset of actionable tasks to pack into your available focus block.
+          Select your focus block to pack the most impactful tasks into your available time.
         </p>
 
         <div class="time-budget-selector">
-          <label>Select Your Available Focus Budget:</label>
+          <label>Select Your Available Focus Block:</label>
           <div class="budget-chips" id="budget-chips">
             <button type="button" class="chip" data-minutes="30">30 min</button>
             <button type="button" class="chip active" data-minutes="60">60 min (1 hr)</button>
@@ -386,43 +377,6 @@
 
         <div class="planner-results" id="planner-results">
           <!-- Dynamically populated -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- DSA & System Design Inspector Modal -->
-  <div id="dsa-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="dsa-modal-title">
-    <div class="modal-card dsa-modal-card">
-      <div class="modal-header">
-        <div class="modal-title-wrap">
-          <i class="ph-bold ph-tree-structure modal-lead-icon"></i>
-          <h3 id="dsa-modal-title">Engine Diagnostics & DSA Inspector</h3>
-        </div>
-        <button id="close-dsa-modal" class="modal-close-btn" aria-label="Close DSA modal">
-          <i class="ph-bold ph-x"></i>
-        </button>
-      </div>
-
-      <div class="dsa-modal-body">
-        <!-- Inspector Sub-Tabs -->
-        <div class="dsa-tabs-nav">
-          <button class="dsa-tab-btn active" data-dsa-tab="dag">
-            <i class="ph ph-git-merge"></i> DAG & Topo
-          </button>
-          <button class="dsa-tab-btn" data-dsa-tab="heap">
-            <i class="ph ph-trend-down"></i> Min-Heap Queue
-          </button>
-          <button class="dsa-tab-btn" data-dsa-tab="trie">
-            <i class="ph ph-magnifying-glass"></i> Prefix Trie
-          </button>
-          <button class="dsa-tab-btn" data-dsa-tab="outbox">
-            <i class="ph ph-database"></i> Event Outbox
-          </button>
-        </div>
-
-        <div class="dsa-tab-content" id="dsa-tab-content">
-          <!-- Live rendered view -->
         </div>
       </div>
     </div>
