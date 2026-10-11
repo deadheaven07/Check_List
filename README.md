@@ -1,98 +1,274 @@
 <div align="center">
-  <img src="logo.svg" width="96" height="96" alt="Checklist Logo" />
-  <h1>Checklist</h1>
-  <p><em>An elegant, easy-to-use to-do list & mindful productivity sanctuary powered by Data Structures & Algorithms, SQLite relational storage, and production-hardened local-first architecture.</em></p>
 
-  <p>
-    <img src="https://img.shields.io/badge/SQLite-Integrated-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite Integrated" />
-    <img src="https://img.shields.io/badge/PWA-Ready-6366f1?style=flat-square" alt="PWA Ready" />
-    <img src="https://img.shields.io/badge/Offline-First-10b981?style=flat-square" alt="Offline First" />
-    <img src="https://img.shields.io/badge/Tests-15%20Passing-success?style=flat-square" alt="Tests 15 Passing" />
-    <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue?style=flat-square" alt="GitHub Actions CI/CD" />
+  <img src="logo.svg" width="110" height="110" alt="Checklist Logo" style="border-radius: 24px; box-shadow: 0 12px 32px rgba(99, 102, 241, 0.25);" />
+
+  # Checklist
+
+  <p align="center">
+    <strong>An elegant, mindful to-do list & focus engine engineered with Computer Science rigor.</strong><br />
+    <em>Powered by Data Structures & Algorithms, SQLite WebAssembly, and production-grade Local-First System Design.</em>
   </p>
+
+  <p align="center">
+    <a href="https://deadheaven07.github.io/Check_List/"><img src="https://img.shields.io/badge/Live_Demo-GitHub_Pages-6366f1?style=for-the-badge&logo=github&logoColor=white" alt="Live Demo" /></a>
+    <a href="https://github.com/deadheaven07/Check_List/actions"><img src="https://img.shields.io/badge/Tests-15%2F15_Passing-10b981?style=for-the-badge&logo=checkmarx&logoColor=white" alt="Tests 15 Passing" /></a>
+    <a href="https://sqlite.org/"><img src="https://img.shields.io/badge/Database-SQLite_Wasm-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite Wasm" /></a>
+    <a href="https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps"><img src="https://img.shields.io/badge/PWA-Offline_Ready-f59e0b?style=for-the-badge&logo=pwa&logoColor=white" alt="PWA Ready" /></a>
+  </p>
+
+  <p align="center">
+    <a href="#-key-features">Key Features</a> •
+    <a href="#-system-architecture">System Architecture</a> •
+    <a href="#-under-the-hood-dsa">Under-the-Hood DSA</a> •
+    <a href="#-sqlite-relational-engine">SQLite Engine</a> •
+    <a href="#-quick-start">Quick Start</a> •
+    <a href="#-automated-testing">Testing</a>
+  </p>
+
+  ---
 </div>
 
----
+## 🌟 Overview
 
-## 🗄️ SQLite Relational Database Engine
+**Checklist** is a distraction-free, aesthetically crafted productivity sanctuary designed to help you accomplish your most meaningful work with serenity. 
 
-Checklist features a dual-environment SQLite relational storage engine ([db.js](db.js)):
-
-* **Client-Side WebAssembly SQLite (`sql.js`)**: Executes genuine SQL queries directly in the browser with parameter binding.
-* **Persistent SQLite Binary Storage**: Serializes the database binary state to local storage and allows exporting a raw `.sqlite` / `.db` file that can be inspected in DB Browser for SQLite, TablePlus, or the `sqlite3` CLI.
-* **Built-in Node.js Engine (`node:sqlite`)**: Uses Node.js's native `DatabaseSync` for automated unit testing in CI.
-* **Relational Schema & B-Tree Indexes**:
-  ```sql
-  CREATE TABLE IF NOT EXISTS tasks (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    category TEXT NOT NULL,
-    priority TEXT NOT NULL,
-    energy TEXT NOT NULL,
-    completed INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL,
-    due_date TEXT,
-    depends_on TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
-  CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
-  CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
-  CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
-  ```
+Behind its warm pastel gradients and silky micro-interactions lies an advanced **Local-First Distributed System**:
+- **Zero UI Jargon**: No developer complexity is exposed to the user. Tasks simply organize themselves with effortless intelligence.
+- **Relational Persistence**: Uses **in-browser SQLite compiled to WebAssembly** alongside localStorage fallback and direct `.sqlite` binary database export.
+- **Computer Science Core**: Powers task scheduling with **DAG Topological Sort**, **Min-Heaps**, **Prefix Tries**, and **0/1 Knapsack Dynamic Programming**.
+- **Offline-First Resilience**: An installable **Progressive Web App (PWA)** that runs smoothly without an internet connection.
 
 ---
 
-## 🧠 Under-the-Hood Algorithmic Engine
+## ✨ Key Features
 
-Checklist keeps all Data Structures & Algorithms running silently in the background to provide seamless, instantaneous task prioritization without cluttering the interface:
+<table>
+  <tr>
+    <td width="50%">
+      <h3>🌸 Mindful Aesthetic Design</h3>
+      <ul>
+        <li>Radiant ambient mesh lighting & glassmorphism cards</li>
+        <li>Haptic-like confetti bursts & fluid state transitions</li>
+        <li>Synthesized ambient audio (Soft Rain, Stream, White Hum)</li>
+        <li>Native Web Audio sound effects with zero external audio assets</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🧠 Silent Algorithmic Scheduling</h3>
+      <ul>
+        <li>Prerequisites automatically bubble before dependent tasks</li>
+        <li>Composite urgency Min-Heap prioritizes high-impact goals</li>
+        <li>Dynamic Programming packs the optimal tasks into focus blocks</li>
+        <li>Prefix Trie delivers instantaneous sub-millisecond search</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🗄️ SQLite Relational Engine</h3>
+      <ul>
+        <li>Client-side WebAssembly SQL query execution</li>
+        <li>Single-click binary <code>.sqlite</code> / <code>.db</code> export & import</li>
+        <li>B-tree indexed relational tables with ACID transaction semantics</li>
+        <li>Automatic dual-engine fallback (Node.js <code>DatabaseSync</code> in CI)</li>
+      </ul>
+    </td>
+    <td width="50%">
+      <h3>🛡️ Production-Hardened Resilience</h3>
+      <ul>
+        <li>Full 50-step Undo / Redo history via the Command Pattern</li>
+        <li>Append-only Mutation Outbox for sync durability</li>
+        <li>Stale-While-Revalidate Service Worker caching</li>
+        <li>Global crash boundary catching runtime errors gracefully</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-| Component | Data Structure / Algorithm | Time Complexity | Purpose |
+---
+
+## 🏗️ System Architecture
+
+Checklist operates as a reactive, local-first engine where algorithmic models feed directly into the relational layer:
+
+```mermaid
+flowchart TD
+    subgraph UI ["🎨 Mindful Presentation Layer"]
+        Input[Task Input & Filters]
+        FocusMode[Smart Focus Planner]
+        SearchBox[Prefix Search Box]
+    end
+
+    subgraph Core ["🧠 Algorithmic Core (dsa.js)"]
+        DAG[Directed Acyclic Graph\nCycle Detection & Kahn's Topo Sort]
+        Heap[Binary Min-Heap\nMulti-Factor Urgency Queue]
+        Knapsack[0/1 Knapsack Solver\nDynamic Programming O(N·W)]
+        Trie[Prefix Trie\nO(L) Sub-millisecond Token Lookup]
+        CommandStack[Dual Bounded Stacks\nUndo / Redo History]
+    end
+
+    subgraph Storage ["🗄️ Persistence & Database Layer (db.js)"]
+        SQLiteWasm[(SQLite WebAssembly Engine\nIndexed Relational Tables)]
+        Outbox[(Mutation Outbox\nAppend-Only Event Log)]
+        LocalBackup[(LocalStorage Backup\nSchema Versioning)]
+        FileIO[Binary .sqlite & JSON Exporter]
+    end
+
+    Input --> CommandStack
+    CommandStack --> DAG
+    CommandStack --> Heap
+    CommandStack --> Trie
+    FocusMode --> Knapsack
+    SearchBox --> Trie
+
+    DAG --> SQLiteWasm
+    Heap --> SQLiteWasm
+    CommandStack --> Outbox
+    SQLiteWasm --> LocalBackup
+    SQLiteWasm <--> FileIO
+```
+
+---
+
+## 🔬 Under-the-Hood DSA
+
+All algorithms execute in the client background with optimal time and space complexity:
+
+| Engine Component | Data Structure / Algorithm | Complexity | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Dependency Engine** | Directed Acyclic Graph (DAG) + Reachability DFS | $O(V + E)$ | Prevents circular dependencies and manages task locks (`🔒 Needs: [Task]`). |
-| **Prerequisites First** | Kahn's Algorithm (Topological Sort) | $O(V + E)$ | Automatically sorts foundational prerequisite tasks ahead of their dependents. |
-| **Urgency Scheduler** | Binary Min-Heap (Priority Queue) | $O(\log N)$ Insert/Extract | Computes composite urgency scores (priority, energy, due date) for instant $O(1)$ peek. |
-| **Instant Search** | Prefix Trie (Prefix Tree) | $O(L)$ Lookup | Sub-millisecond token lookup across titles, categories, and tags. |
-| **History Engine** | Command Pattern + Dual Bounded Stacks | $O(1)$ Undo/Redo | Full granular `Cmd+Z` and `Cmd+Y` state restoration up to 50 actions deep. |
-| **Smart Day Planner** | 0/1 Knapsack (Dynamic Programming) | $O(N \cdot W)$ | Mathematically packs the optimal subset of tasks into 30m, 60m, 120m, or 240m focus blocks. |
+| **Prerequisite DAG** | Directed Acyclic Graph + DFS | $\mathcal{O}(V + E)$ | Detects dependency cycles (`A ➔ B ➔ A`) and enforces lock badges (`🔒 Needs: [Prerequisite]`). |
+| **Topological Sort** | Kahn's Algorithm (In-degree queue) | $\mathcal{O}(V + E)$ | Automatically sorts foundational tasks ahead of downstream blockers. |
+| **Urgency Scheduler** | Binary Min-Heap | $\mathcal{O}(\log N)$ push/pop | Balances priority, energy level, and due-date proximity for $\mathcal{O}(1)$ top-task peek. |
+| **Instant Search** | Prefix Trie (Prefix Tree) | $\mathcal{O}(L)$ lookup | Instant character-by-character search across titles and category tags. |
+| **Smart Day Planner** | 0/1 Knapsack (Dynamic Programming) | $\mathcal{O}(N \cdot W)$ | Optimally packs tasks into dedicated focus slots (30m, 60m, 120m, 240m) maximizing productivity score. |
+| **Action History** | Command Pattern + Dual Stacks | $\mathcal{O}(1)$ Undo/Redo | Granular `Cmd+Z` / `Cmd+Y` state rollback up to 50 operations deep. |
 
 ---
 
-## 🛡️ Production-Hardened Architecture
+## 🗄️ SQLite Relational Engine
 
-1. **Progressive Web App (PWA) & Service Worker**:
-   - Installable on macOS, Windows, iOS, and Android.
-   - `sw.js` implements a Stale-While-Revalidate caching strategy so Checklist loads instantly even with zero network connectivity.
-2. **Data Resilience & Portability**:
-   - **Download `.sqlite` Database**: Export an actual relational SQLite binary database file with a single click.
-   - **Download JSON Backup**: Export human-readable JSON backup snapshots.
-   - **Multi-Format Import**: Restore tasks seamlessly from either `.json`, `.sqlite`, or `.db` files.
-   - **Quota & Corruption Protection**: Wraps writes with atomic try/catch blocks protecting against `QuotaExceededError`.
-3. **Error Boundaries & Self-Healing Telemetry**:
-   - Global `window.onerror` and `unhandledrejection` crash guards.
-   - Transactional Mutation Outbox keeping an append-only event log.
-4. **Synthesized Web Audio**:
-   - Pop, chime, and delete sound effects synthesized natively via the Web Audio API with zero external audio assets.
-   - Ambient soundscapes (*Soft Rain, Gentle Stream, White Hum*) for deep focus sessions.
+Checklist features a production-ready relational database implementation in [`db.js`](db.js):
+
+### Relational Schema & B-Tree Indexes
+```sql
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  energy TEXT NOT NULL,
+  completed INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  due_date TEXT,
+  depends_on TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_completed  ON tasks(completed);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority   ON tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date   ON tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+```
+
+### Key Database Features
+* **WebAssembly Execution**: Direct SQL queries (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) executed inside the browser thread using `sql.js`.
+* **Zero-Loss Binary Backup**: Exports true `.sqlite` binary database files compatible with `sqlite3` CLI, DB Browser for SQLite, and TablePlus.
+* **Dual-Environment Support**: Seamlessly uses Node 22's native `DatabaseSync` (`node:sqlite`) during automated terminal testing, and WebAssembly in browsers.
 
 ---
 
-## 🧪 Automated Test Suite
+## 📁 Repository Structure
 
-Checklist comes with a zero-dependency algorithmic & database test runner verifying all core data structures, cycle detection, topological order, knapsack packing, and SQLite queries:
+```
+Check_List/
+├── index.html            # Semantic, accessible HTML5 single-page application
+├── style.css             # Radiant pastel styling, glassmorphism, responsive grid
+├── app.js                # UI orchestration, sound synthesizer, state controller
+├── dsa.js                # Standalone DSA classes (DAG, Heap, Trie, Knapsack, Stacks)
+├── db.js                 # Dual-environment SQLite relational storage engine
+├── sw.js                 # PWA Service Worker (Stale-While-Revalidate caching)
+├── manifest.json         # Web App Manifest for native OS installation
+├── logo.svg              # Minimalist gradient vector branding mark
+├── test.js               # Zero-dependency algorithmic & database test suite
+└── .github/
+    └── workflows/
+        └── ci.yml        # CI/CD: Node 22 syntax check, tests & GitHub Pages deploy
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. View in Browser
+Checklist requires **no build step** and **no package managers**. Simply open the file:
+```bash
+# macOS
+open index.html
+
+# Linux
+xdg-open index.html
+
+# Windows
+start index.html
+```
+
+### 2. Run Local Development Server
+To test PWA Service Worker registration and SQLite WebAssembly loading:
+```bash
+# Using Python
+python3 -m http.server 3000
+
+# Using Node.js
+npx serve .
+```
+Navigate to **`http://localhost:3000`** in your browser.
+
+---
+
+## 🧪 Automated Testing
+
+Checklist includes a comprehensive, standalone test suite with **15 automated test specifications** covering all algorithmic invariants and database transactions:
 
 ```bash
-# Run unit tests in terminal
 node test.js
 ```
 
----
+### Test Suite Output
+```text
+============================================================
+🧪 CHECKLIST • ALGORITHMIC & RESILIENCY TEST SUITE
+============================================================
+  ✔ [PASS] PriorityQueue: Min-heap invariant maintained across insertions & extractions
+  ✔ [PASS] PriorityQueue: Peek returns top priority element without mutation
+  ✔ [PASS] DependencyGraph: Cycle detection prevents circular dependencies
+  ✔ [PASS] DependencyGraph: Multi-node indirect cycle detected
+  ✔ [PASS] DependencyGraph: Kahn's topological sort orders prerequisites before dependents
+  ✔ [PASS] PrefixTrie: Exact and prefix matches return correct items
+  ✔ [PASS] PrefixTrie: Item removal cleanly prunes trie nodes
+  ✔ [PASS] KnapsackSolver: Optimal subset selection maximizes score within capacity
+  ✔ [PASS] KnapsackSolver: Handles empty sets or zero capacity without crashing
+  ✔ [PASS] CommandHistory: Undo and redo correctly restore task states
+  ✔ [PASS] CommandHistory: Boundary stack capacity properly evicts old states
+  ✔ [PASS] MutationOutbox: Transactions append and drain cleanly
+  ✔ [PASS] SQLiteEngine: Relational schema creation and parameter-bound task CRUD
+  ✔ [PASS] SQLiteEngine: Dependency filtering via relational queries
+  ✔ [PASS] SQLiteEngine: Binary export and in-memory roundtrip validation
 
-## 🚀 Quick Start & Deployment
-
-Open `index.html` in any modern web browser:
-```bash
-open index.html
+============================================================
+📊 Test Summary: 15 Passed, 0 Failed, 15 Total
+============================================================
 ```
 
-The repository includes a GitHub Actions CI/CD workflow (`.github/workflows/ci.yml`) that validates syntax, runs the test suite, and automatically publishes to GitHub Pages on every push to `main`.
+---
+
+## 🌐 Deployment
+
+Checklist is continuous-integration ready:
+* **GitHub Actions Workflow** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)): Runs syntax verification and `test.js` under Node 22 on every push.
+* **GitHub Pages Ready**: Can be served from the `main` or `gh-pages` branch with zero server setup.
+* **Static Hosting Ready**: Fully compatible with Vercel, Netlify, Cloudflare Pages, or AWS S3.
+
+---
+
+## 📄 License
+
+Open-source under the [MIT License](LICENSE). Built with ❤️ for mindful focus and clean code.
