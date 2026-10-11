@@ -1,5 +1,5 @@
 /**
- * Klaro &bull; Clear Mind & Daily Flow
+ * Checklist &bull; Daily Tasks & Focus Flow
  * Interactive Logic, Web Audio Soundscapes, Confetti Particle System & Local Storage
  */
 
@@ -9,8 +9,8 @@
   // ---------------------------------------------------------------------------
   // 1. Initial State & Storage Keys
   // ---------------------------------------------------------------------------
-  const STORAGE_KEY_TASKS = 'klaro_tasks_v1';
-  const STORAGE_KEY_SETTINGS = 'klaro_settings_v1';
+  const STORAGE_KEY_TASKS = 'checklist_tasks_v1';
+  const STORAGE_KEY_SETTINGS = 'checklist_settings_v1';
 
   // Empty initial list - no dummy tasks
   const DEFAULT_TASKS = [];
@@ -329,16 +329,16 @@
   // ---------------------------------------------------------------------------
   function loadTasks() {
     try {
-      // Check Klaro storage
+      // Check Checklist storage
       const data = localStorage.getItem(STORAGE_KEY_TASKS);
       if (data) {
         return JSON.parse(data);
       }
 
       // Check for any tasks added in previous session
-      const prevV2 = localStorage.getItem('bloom_tasks_v2');
-      if (prevV2) {
-        const parsed = JSON.parse(prevV2);
+      const prevKlaro = localStorage.getItem('klaro_tasks_v1') || localStorage.getItem('bloom_tasks_v2');
+      if (prevKlaro) {
+        const parsed = JSON.parse(prevKlaro);
         localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(parsed));
         return parsed;
       }

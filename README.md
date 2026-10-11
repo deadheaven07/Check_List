@@ -1,4 +1,4 @@
-# Check_List &bull; Klaro
+# Check_List &bull; Checklist
 
 An elegant, easy-to-use to-do list and mindful focus web application with a radiant light aesthetic and tactile feedback.
 
