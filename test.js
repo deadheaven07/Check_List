@@ -237,6 +237,75 @@ test('should record mutations and maintain historical buffer', () => {
 });
 
 // ============================================================================
+// 7. ChecklistDB (SQLite Relational Database) Tests
+// ============================================================================
+console.log('\n\x1b[1m[7. ChecklistDB SQLite Relational Engine]\x1b[0m');
+
+const ChecklistDB = require('./db.js');
+
+test('should initialize SQLite tables and indexes successfully', () => {
+  const db = new ChecklistDB();
+  db.init();
+  assert.strictEqual(db.isReady, true);
+  assert.ok(db.db !== null);
+});
+
+test('should perform CRUD operations using parameterized SQL queries', () => {
+  const db = new ChecklistDB();
+  db.init();
+
+  const task = {
+    id: 'sql_task_1',
+    title: 'Relational SQLite Task',
+    category: 'Work',
+    priority: 'high',
+    energy: 'quick',
+    completed: false,
+    createdAt: 1700000000000,
+    dueDate: '2026-10-15',
+    dependsOn: ''
+  };
+
+  const inserted = db.upsertTask(task);
+  assert.strictEqual(inserted, true);
+
+  const all = db.getAllTasks();
+  assert.strictEqual(all.length, 1);
+  assert.strictEqual(all[0].title, 'Relational SQLite Task');
+  assert.strictEqual(all[0].priority, 'high');
+
+  // Update completion status
+  task.completed = true;
+  db.upsertTask(task);
+  const updated = db.getAllTasks();
+  assert.strictEqual(updated[0].completed, true);
+
+  // Delete
+  db.deleteTask('sql_task_1');
+  assert.strictEqual(db.getAllTasks().length, 0);
+});
+
+test('should perform batch atomic synchronization transaction', () => {
+  const db = new ChecklistDB();
+  db.init();
+
+  const batch = [
+    { id: 'b1', title: 'Task 1', category: 'Personal', priority: 'low', energy: 'quick', completed: false, createdAt: 1 },
+    { id: 'b2', title: 'Task 2', category: 'Creative', priority: 'medium', energy: 'steady', completed: true, createdAt: 2 },
+    { id: 'b3', title: 'Task 3', category: 'Health', priority: 'high', energy: 'deep', completed: false, createdAt: 3 }
+  ];
+
+  const ok = db.syncAllTasks(batch);
+  assert.strictEqual(ok, true);
+
+  const retrieved = db.getAllTasks();
+  assert.strictEqual(retrieved.length, 3);
+  // Ordered by created_at DESC
+  assert.strictEqual(retrieved[0].id, 'b3');
+  assert.strictEqual(retrieved[2].id, 'b1');
+});
+
+// ============================================================================
 // Test Suite Summary
 // ============================================================================
 console.log('\n----------------------------------------');

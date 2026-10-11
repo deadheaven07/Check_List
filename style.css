@@ -1610,6 +1610,10 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.backup-action-card.full-width-card {
+  grid-column: 1 / -1;
+}
+
 .backup-card-title {
   font-size: 0.95rem;
   font-weight: 700;

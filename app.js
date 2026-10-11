@@ -26,6 +26,7 @@
   const dsaTrie = new window.ChecklistDSA.TaskTrie();
   const commandManager = new window.ChecklistDSA.CommandManager(50);
   const mutationOutbox = new window.ChecklistDSA.MutationOutbox();
+  const sqliteDB = typeof window.ChecklistDB !== 'undefined' ? new window.ChecklistDB() : null;
 
   let tasks = loadTasks();
   let currentFilter = 'all';
@@ -440,6 +441,9 @@
 
   function saveTasks(skipOutbox = false) {
     saveTasksDirect(tasks);
+    if (sqliteDB && sqliteDB.isReady) {
+      sqliteDB.syncAllTasks(tasks);
+    }
     rebuildDSAEngines();
     renderAll();
     updateUndoRedoButtons();
@@ -945,12 +949,13 @@
         }
       }
       const kb = (totalBytes / 1024).toFixed(1);
-      usageBadge.textContent = `${kb} KB used`;
+      const isSqlite = sqliteDB && sqliteDB.isReady ? 'SQLite Active' : 'Storage Active';
+      usageBadge.textContent = `${kb} KB • ${isSqlite}`;
       if (statusText) {
-        statusText.textContent = `${tasks.length} tasks synced • Schema v${CURRENT_SCHEMA_VERSION}`;
+        statusText.textContent = `${tasks.length} tasks indexed in SQLite • Schema v${CURRENT_SCHEMA_VERSION}`;
       }
     } catch (e) {
-      usageBadge.textContent = 'Healthy';
+      usageBadge.textContent = 'SQLite Active';
     }
   }
 
@@ -973,13 +978,87 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast('Backup successfully downloaded!');
+    showToast('JSON backup successfully downloaded!');
+  }
+
+  function exportSQLiteDB() {
+    if (!sqliteDB) {
+      showToast('SQLite engine initializing...');
+      return;
+    }
+
+    const binary = sqliteDB.exportSQLiteBinary();
+    if (binary) {
+      const blob = new Blob([binary], { type: 'application/x-sqlite3' });
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `checklist-${dateStr}.sqlite`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('SQLite database (.sqlite) downloaded!');
+    } else {
+      // SQL dump fallback
+      let sqlDump = `-- Checklist SQLite Relational Database Export\n-- Generated: ${new Date().toISOString()}\n\n`;
+      sqlDump += `CREATE TABLE IF NOT EXISTS tasks (\n  id TEXT PRIMARY KEY,\n  title TEXT NOT NULL,\n  category TEXT NOT NULL,\n  priority TEXT NOT NULL,\n  energy TEXT NOT NULL,\n  completed INTEGER NOT NULL DEFAULT 0,\n  created_at INTEGER NOT NULL,\n  due_date TEXT,\n  depends_on TEXT\n);\n\n`;
+      for (const t of tasks) {
+        const titleSafe = (t.title || '').replace(/'/g, "''");
+        sqlDump += `INSERT OR REPLACE INTO tasks VALUES ('${t.id}', '${titleSafe}', '${t.category}', '${t.priority}', '${t.energy}', ${t.completed ? 1 : 0}, ${t.createdAt}, '${t.dueDate || ''}', '${t.dependsOn || ''}');\n`;
+      }
+      const blob = new Blob([sqlDump], { type: 'application/sql' });
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `checklist-${dateStr}.sql`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('SQL relational dump downloaded!');
+    }
   }
 
   function handleImportFileInput(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
 
+    const fileName = file.name.toLowerCase();
+
+    // 1. Handle SQLite (.sqlite / .db) binary file import
+    if (fileName.endsWith('.sqlite') || fileName.endsWith('.db')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const uint8 = new Uint8Array(e.target.result);
+          if (sqliteDB && sqliteDB.importSQLiteBinary(uint8)) {
+            const imported = sqliteDB.getAllTasks();
+            const valid = validateAndMigrateTasks(imported);
+            const prev = [...tasks];
+            tasks = valid;
+            saveTasksDirect(tasks);
+            rebuildDSAEngines();
+            renderAll();
+            closeBackupModal();
+            triggerConfetti();
+            showToast(`Loaded ${valid.length} tasks from SQLite database!`, true);
+          } else {
+            showToast('Unable to parse SQLite database binary.');
+          }
+        } catch (err) {
+          showToast('Failed to load SQLite file.');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+    }
+
+    // 2. Handle JSON backup file import
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -1356,11 +1435,13 @@
     const backupBtn = document.getElementById('backup-btn');
     const closeBackupBtn = document.getElementById('close-backup-modal');
     const exportJsonBtn = document.getElementById('export-json-btn');
+    const exportSqliteBtn = document.getElementById('export-sqlite-btn');
     const importFileInput = document.getElementById('import-file-input');
 
     if (backupBtn) backupBtn.addEventListener('click', () => openBackupModal());
     if (closeBackupBtn) closeBackupBtn.addEventListener('click', () => closeBackupModal());
     if (exportJsonBtn) exportJsonBtn.addEventListener('click', () => exportBackupJSON());
+    if (exportSqliteBtn) exportSqliteBtn.addEventListener('click', () => exportSQLiteDB());
     if (importFileInput) importFileInput.addEventListener('change', (e) => handleImportFileInput(e));
 
     // Smart Planner Modal Triggers
@@ -1424,6 +1505,16 @@
     updateUndoRedoButtons();
     updateTimerDisplay();
     updateStorageHealthBadge();
+
+    // Initialize SQLite Relational Database Engine
+    if (sqliteDB) {
+      sqliteDB.init().then(() => {
+        sqliteDB.syncAllTasks(tasks);
+        updateStorageHealthBadge();
+      }).catch((err) => {
+        console.log('[Checklist] SQLite initialization notice:', err);
+      });
+    }
   });
 
 })();

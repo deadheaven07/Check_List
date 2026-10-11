@@ -1,15 +1,45 @@
 <div align="center">
   <img src="logo.svg" width="96" height="96" alt="Checklist Logo" />
   <h1>Checklist</h1>
-  <p><em>An elegant, easy-to-use to-do list & mindful productivity sanctuary powered by Data Structures & Algorithms under the hood and production-hardened local-first architecture.</em></p>
+  <p><em>An elegant, easy-to-use to-do list & mindful productivity sanctuary powered by Data Structures & Algorithms, SQLite relational storage, and production-hardened local-first architecture.</em></p>
 
   <p>
+    <img src="https://img.shields.io/badge/SQLite-Integrated-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite Integrated" />
     <img src="https://img.shields.io/badge/PWA-Ready-6366f1?style=flat-square" alt="PWA Ready" />
     <img src="https://img.shields.io/badge/Offline-First-10b981?style=flat-square" alt="Offline First" />
-    <img src="https://img.shields.io/badge/Tests-12%20Passing-success?style=flat-square" alt="Tests 12 Passing" />
+    <img src="https://img.shields.io/badge/Tests-15%20Passing-success?style=flat-square" alt="Tests 15 Passing" />
     <img src="https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-blue?style=flat-square" alt="GitHub Actions CI/CD" />
   </p>
 </div>
+
+---
+
+## 🗄️ SQLite Relational Database Engine
+
+Checklist features a dual-environment SQLite relational storage engine ([db.js](db.js)):
+
+* **Client-Side WebAssembly SQLite (`sql.js`)**: Executes genuine SQL queries directly in the browser with parameter binding.
+* **Persistent SQLite Binary Storage**: Serializes the database binary state to local storage and allows exporting a raw `.sqlite` / `.db` file that can be inspected in DB Browser for SQLite, TablePlus, or the `sqlite3` CLI.
+* **Built-in Node.js Engine (`node:sqlite`)**: Uses Node.js's native `DatabaseSync` for automated unit testing in CI.
+* **Relational Schema & B-Tree Indexes**:
+  ```sql
+  CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    priority TEXT NOT NULL,
+    energy TEXT NOT NULL,
+    completed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    due_date TEXT,
+    depends_on TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+  CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+  CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+  CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
+  ```
 
 ---
 
@@ -33,10 +63,11 @@ Checklist keeps all Data Structures & Algorithms running silently in the backgro
 1. **Progressive Web App (PWA) & Service Worker**:
    - Installable on macOS, Windows, iOS, and Android.
    - `sw.js` implements a Stale-While-Revalidate caching strategy so Checklist loads instantly even with zero network connectivity.
-2. **Data Resilience & Zero Data Loss**:
-   - **Schema Versioning & Migrations (`schemaVersion: 1`)**: Safely parses and normalizes user task objects without wiping data across updates.
-   - **Quota & Corruption Protection**: Wraps writes with atomic try/catch blocks protecting against `QuotaExceededError` and sandbox restrictions.
-   - **Data Portability**: Integrated Export & Restore allowing one-click download and restore of encrypted local JSON backups.
+2. **Data Resilience & Portability**:
+   - **Download `.sqlite` Database**: Export an actual relational SQLite binary database file with a single click.
+   - **Download JSON Backup**: Export human-readable JSON backup snapshots.
+   - **Multi-Format Import**: Restore tasks seamlessly from either `.json`, `.sqlite`, or `.db` files.
+   - **Quota & Corruption Protection**: Wraps writes with atomic try/catch blocks protecting against `QuotaExceededError`.
 3. **Error Boundaries & Self-Healing Telemetry**:
    - Global `window.onerror` and `unhandledrejection` crash guards.
    - Transactional Mutation Outbox keeping an append-only event log.
@@ -48,7 +79,7 @@ Checklist keeps all Data Structures & Algorithms running silently in the backgro
 
 ## 🧪 Automated Test Suite
 
-Checklist comes with a zero-dependency algorithmic test runner verifying all core data structures, cycle detection, topological order, and knapsack packing:
+Checklist comes with a zero-dependency algorithmic & database test runner verifying all core data structures, cycle detection, topological order, knapsack packing, and SQLite queries:
 
 ```bash
 # Run unit tests in terminal

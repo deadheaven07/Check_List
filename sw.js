@@ -3,7 +3,7 @@
  * Cache-First & Stale-While-Revalidate Offline Strategy
  */
 
-const CACHE_NAME = 'checklist-pwa-v1';
+const CACHE_NAME = 'checklist-pwa-v2';
 
 const STATIC_ASSETS = [
   './',
@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
   './style.css',
   './app.js',
   './dsa.js',
+  './db.js',
   './logo.svg',
   './logo.jpg',
   './manifest.json'

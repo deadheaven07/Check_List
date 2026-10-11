@@ -30,6 +30,9 @@
   <!-- Phosphor Icons for crisp, lightweight UI icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
+  <!-- SQLite Wasm Client-side Relational Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.js"></script>
+  
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -419,25 +422,36 @@
         <div class="backup-actions-grid">
           <div class="backup-action-card">
             <div class="backup-card-info">
-              <h4 class="backup-card-title">Export Backup</h4>
+              <h4 class="backup-card-title">Export JSON Backup</h4>
               <p class="backup-card-sub">Save all tasks, dependency graphs, and priorities to an offline .json file.</p>
             </div>
             <button id="export-json-btn" class="primary-btn">
               <i class="ph-bold ph-download-simple"></i>
-              <span>Download Backup</span>
+              <span>Download JSON</span>
             </button>
           </div>
 
           <div class="backup-action-card">
             <div class="backup-card-info">
-              <h4 class="backup-card-title">Restore Backup</h4>
-              <p class="backup-card-sub">Safely import a saved Checklist JSON file to restore your tasks.</p>
+              <h4 class="backup-card-title">Export SQLite (.sqlite)</h4>
+              <p class="backup-card-sub">Download a genuine relational SQLite database file compatible with TablePlus and SQLite CLI.</p>
+            </div>
+            <button id="export-sqlite-btn" class="primary-btn">
+              <i class="ph-bold ph-database"></i>
+              <span>Download .sqlite</span>
+            </button>
+          </div>
+
+          <div class="backup-action-card full-width-card">
+            <div class="backup-card-info">
+              <h4 class="backup-card-title">Restore from File</h4>
+              <p class="backup-card-sub">Safely import a saved Checklist JSON file or SQLite (.sqlite / .db) file to restore your tasks.</p>
             </div>
             <label class="action-ghost-btn import-label-btn" for="import-file-input">
               <i class="ph-bold ph-upload-simple"></i>
-              <span>Import File</span>
+              <span>Select File (.json, .sqlite, .db)</span>
             </label>
-            <input type="file" id="import-file-input" accept=".json" class="hidden">
+            <input type="file" id="import-file-input" accept=".json,.sqlite,.db" class="hidden">
           </div>
         </div>
 
@@ -445,11 +459,11 @@
           <div class="health-indicator">
             <i class="ph-fill ph-check-circle health-icon"></i>
             <div>
-              <span class="health-title">Local Storage Integrity</span>
-              <p class="health-desc" id="storage-status-text">Sandboxed Offline Storage &bull; Schema v1</p>
+              <span class="health-title">Local Storage & SQLite Engine</span>
+              <p class="health-desc" id="storage-status-text">SQLite Wasm Engine &bull; Schema v1</p>
             </div>
           </div>
-          <span class="storage-usage-pill" id="storage-usage-badge">Healthy</span>
+          <span class="storage-usage-pill" id="storage-usage-badge">SQLite Active</span>
         </div>
       </div>
     </div>
@@ -458,8 +472,9 @@
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- Scripts: DSA Engine first, then App Logic -->
+  <!-- Scripts: DSA Engine, SQLite Database, and App Logic -->
   <script src="dsa.js"></script>
+  <script src="db.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
