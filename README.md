@@ -1,6 +1,8 @@
-# Check_List &bull; Checklist
-
-An elegant, easy-to-use to-do list and mindful focus web application with a radiant light aesthetic and tactile feedback.
+<div align="center">
+  <img src="logo.svg" width="96" height="96" alt="Checklist Logo" />
+  <h1>Checklist</h1>
+  <p><em>An elegant, easy-to-use to-do list and mindful focus web application with a radiant light aesthetic.</em></p>
+</div>
 
 ## ✨ Key Features
 - **Luminous Light Palette**: Soft warm cream canvas with ambient radial pastel blurs (lavender, soft rose, mint).
