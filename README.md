@@ -93,25 +93,25 @@ Checklist operates as a reactive, local-first engine where algorithmic models fe
 
 ```mermaid
 flowchart TD
-    subgraph UI ["🎨 Mindful Presentation Layer"]
-        Input[Task Input & Filters]
-        FocusMode[Smart Focus Planner]
-        SearchBox[Prefix Search Box]
+    subgraph UI ["Mindful Presentation Layer"]
+        Input["Task Input and Filters"]
+        FocusMode["Smart Focus Planner"]
+        SearchBox["Prefix Search Box"]
     end
 
-    subgraph Core ["🧠 Algorithmic Core (dsa.js)"]
-        DAG[Directed Acyclic Graph\nCycle Detection & Kahn's Topo Sort]
-        Heap[Binary Min-Heap\nMulti-Factor Urgency Queue]
-        Knapsack[0/1 Knapsack Solver\nDynamic Programming O(N·W)]
-        Trie[Prefix Trie\nO(L) Sub-millisecond Token Lookup]
-        CommandStack[Dual Bounded Stacks\nUndo / Redo History]
+    subgraph Core ["Algorithmic Core (dsa.js)"]
+        DAG["Directed Acyclic Graph<br/>Cycle Detection and Kahn Topo Sort"]
+        Heap["Binary Min-Heap<br/>Multi-Factor Urgency Queue"]
+        Knapsack["0/1 Knapsack Solver<br/>Dynamic Programming O(N·W)"]
+        Trie["Prefix Trie<br/>O(L) Sub-millisecond Token Lookup"]
+        CommandStack["Dual Bounded Stacks<br/>Undo and Redo History"]
     end
 
-    subgraph Storage ["🗄️ Persistence & Database Layer (db.js)"]
-        SQLiteWasm[(SQLite WebAssembly Engine\nIndexed Relational Tables)]
-        Outbox[(Mutation Outbox\nAppend-Only Event Log)]
-        LocalBackup[(LocalStorage Backup\nSchema Versioning)]
-        FileIO[Binary .sqlite & JSON Exporter]
+    subgraph Storage ["Persistence and Database Layer (db.js)"]
+        SQLiteWasm[("SQLite WebAssembly Engine<br/>Indexed Relational Tables")]
+        Outbox[("Mutation Outbox<br/>Append-Only Event Log")]
+        LocalBackup[("LocalStorage Backup<br/>Schema Versioning")]
+        FileIO["Binary .sqlite and JSON Exporter"]
     end
 
     Input --> CommandStack
