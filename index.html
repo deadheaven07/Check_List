@@ -4,10 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Checklist - An elegant, easy-to-use to-do list with a radiant light aesthetic, mindful focus, and intuitive productivity.">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <!-- Open Graph & Social Previews -->
+  <meta property="og:title" content="Checklist &bull; Daily Tasks & Focus Flow">
+  <meta property="og:description" content="An elegant, easy-to-use to-do list with a radiant light aesthetic, mindful focus, and intuitive productivity.">
+  <meta property="og:image" content="logo.jpg">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  
   <title>Checklist &bull; Daily Tasks & Focus Flow</title>
   
-  <!-- Favicon -->
+  <!-- PWA Manifest & App Icons -->
+  <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="apple-touch-icon" href="logo.svg">
   
   <!-- Modern Google Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,6 +70,11 @@
         <button id="sound-toggle-btn" class="icon-control-btn" title="Toggle audio feedback" aria-label="Toggle Sound Effects">
           <i class="ph-bold ph-speaker-high" id="sound-icon"></i>
           <span class="btn-label">Sound</span>
+        </button>
+
+        <button id="backup-btn" class="icon-control-btn" title="Backup & Restore Data" aria-label="Backup and Restore Data">
+          <i class="ph-bold ph-cloud-arrow-down"></i>
+          <span class="btn-label">Backup</span>
         </button>
 
         <button id="smart-planner-btn" class="icon-control-btn" title="Smart Day Planner" aria-label="Smart Day Planner">
@@ -377,6 +395,61 @@
 
         <div class="planner-results" id="planner-results">
           <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  <!-- Backup & Data Portability Modal -->
+  <div id="backup-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <i class="ph-bold ph-shield-check modal-lead-icon"></i>
+          <h3 id="backup-modal-title">Data Safety & Backup</h3>
+        </div>
+        <button id="close-backup-modal" class="modal-close-btn" aria-label="Close backup modal">
+          <i class="ph-bold ph-x"></i>
+        </button>
+      </div>
+
+      <div class="backup-modal-body">
+        <p class="modal-desc">
+          Your tasks are securely stored locally on this device. You can download an offline JSON backup or restore past checkpoints at any time.
+        </p>
+
+        <div class="backup-actions-grid">
+          <div class="backup-action-card">
+            <div class="backup-card-info">
+              <h4 class="backup-card-title">Export Backup</h4>
+              <p class="backup-card-sub">Save all tasks, dependency graphs, and priorities to an offline .json file.</p>
+            </div>
+            <button id="export-json-btn" class="primary-btn">
+              <i class="ph-bold ph-download-simple"></i>
+              <span>Download Backup</span>
+            </button>
+          </div>
+
+          <div class="backup-action-card">
+            <div class="backup-card-info">
+              <h4 class="backup-card-title">Restore Backup</h4>
+              <p class="backup-card-sub">Safely import a saved Checklist JSON file to restore your tasks.</p>
+            </div>
+            <label class="action-ghost-btn import-label-btn" for="import-file-input">
+              <i class="ph-bold ph-upload-simple"></i>
+              <span>Import File</span>
+            </label>
+            <input type="file" id="import-file-input" accept=".json" class="hidden">
+          </div>
+        </div>
+
+        <div class="storage-health-card">
+          <div class="health-indicator">
+            <i class="ph-fill ph-check-circle health-icon"></i>
+            <div>
+              <span class="health-title">Local Storage Integrity</span>
+              <p class="health-desc" id="storage-status-text">Sandboxed Offline Storage &bull; Schema v1</p>
+            </div>
+          </div>
+          <span class="storage-usage-pill" id="storage-usage-badge">Healthy</span>
         </div>
       </div>
     </div>

@@ -1,0 +1,42 @@
+{
+  "name": "Checklist",
+  "short_name": "Checklist",
+  "description": "An elegant, mindful daily task manager with focus flow, gentle light aesthetics, and algorithmic scheduling.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fbfbfd",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Add Task",
+      "short_name": "New Task",
+      "description": "Quickly add a new intention",
+      "url": "./index.html#new-task",
+      "icons": [{ "src": "logo.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Focus Mode",
+      "short_name": "Focus",
+      "description": "Open Mindful Focus Timer",
+      "url": "./index.html#focus",
+      "icons": [{ "src": "logo.svg", "sizes": "any" }]
+    }
+  ]
+}

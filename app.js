@@ -357,30 +357,93 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 6. Tasks Management & Storage
+  // 6. Tasks Management, Storage & Schema Migration
   // ---------------------------------------------------------------------------
+  const CURRENT_SCHEMA_VERSION = 1;
+
+  function sanitizeTask(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const validPriorities = ['low', 'medium', 'high'];
+    const validEnergies = ['quick', 'steady', 'deep'];
+    const validCategories = ['Personal', 'Work', 'Creative', 'Health'];
+
+    const id = typeof raw.id === 'string' && raw.id ? raw.id : 'task-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
+    const title = typeof raw.title === 'string' ? raw.title.trim().slice(0, 200) : 'Untitled task';
+    if (!title) return null;
+
+    const category = validCategories.includes(raw.category) ? raw.category : 'Personal';
+    const priority = validPriorities.includes(raw.priority) ? raw.priority : 'medium';
+    const energy = validEnergies.includes(raw.energy) ? raw.energy : 'steady';
+    const completed = Boolean(raw.completed);
+    const createdAt = typeof raw.createdAt === 'number' ? raw.createdAt : Date.now();
+    const dueDate = typeof raw.dueDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.dueDate) ? raw.dueDate : '';
+    const dependsOn = typeof raw.dependsOn === 'string' ? raw.dependsOn : (Array.isArray(raw.dependsOn) ? raw.dependsOn[0] || '' : '');
+
+    return { id, title, category, priority, energy, completed, createdAt, dueDate, dependsOn };
+  }
+
+  function validateAndMigrateTasks(rawList) {
+    if (!Array.isArray(rawList)) return [];
+    const validTasks = [];
+    const seenIds = new Set();
+
+    for (const raw of rawList) {
+      const sanitized = sanitizeTask(raw);
+      if (sanitized && !seenIds.has(sanitized.id)) {
+        seenIds.add(sanitized.id);
+        validTasks.push(sanitized);
+      }
+    }
+    return validTasks;
+  }
+
   function loadTasks() {
     try {
-      const data = localStorage.getItem(STORAGE_KEY_TASKS);
-      if (data) return JSON.parse(data);
-
-      const prevKlaro = localStorage.getItem('klaro_tasks_v1') || localStorage.getItem('bloom_tasks_v2');
-      if (prevKlaro) {
-        const parsed = JSON.parse(prevKlaro);
-        localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(parsed));
-        return parsed;
+      const stored = localStorage.getItem(STORAGE_KEY_TASKS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const rawList = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.tasks) ? parsed.tasks : []);
+        return validateAndMigrateTasks(rawList);
       }
-    } catch (e) {}
+
+      const prev = localStorage.getItem('klaro_tasks_v1') || localStorage.getItem('bloom_tasks_v2');
+      if (prev) {
+        const parsedLegacy = JSON.parse(prev);
+        const migrated = validateAndMigrateTasks(Array.isArray(parsedLegacy) ? parsedLegacy : []);
+        saveTasksDirect(migrated);
+        return migrated;
+      }
+    } catch (e) {
+      console.warn('[Checklist] Failed to parse local storage tasks, starting fresh safe state.', e);
+    }
     return DEFAULT_TASKS;
   }
 
-  function saveTasks(skipOutbox = false) {
+  function saveTasksDirect(taskList) {
     try {
-      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
-    } catch (e) {}
+      const envelope = {
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        updatedAt: Date.now(),
+        tasks: taskList
+      };
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(envelope));
+      return true;
+    } catch (err) {
+      if (err.name === 'QuotaExceededError') {
+        showToast('Storage quota reached! Download a backup to free space.');
+      } else {
+        showToast('Storage write failed. Please check browser permissions.');
+      }
+      return false;
+    }
+  }
+
+  function saveTasks(skipOutbox = false) {
+    saveTasksDirect(tasks);
     rebuildDSAEngines();
     renderAll();
     updateUndoRedoButtons();
+    updateStorageHealthBadge();
   }
 
   // Rebuild DAG, Binary Heap, and Prefix Trie structures from active state
@@ -852,6 +915,149 @@
   }
 
   // ---------------------------------------------------------------------------
+  // 10. Data Safety, Backup & Portability (Production Resilience)
+  // ---------------------------------------------------------------------------
+  function openBackupModal() {
+    const modal = document.getElementById('backup-modal');
+    if (modal) {
+      updateStorageHealthBadge();
+      modal.classList.remove('hidden');
+    }
+  }
+
+  function closeBackupModal() {
+    const modal = document.getElementById('backup-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function updateStorageHealthBadge() {
+    const usageBadge = document.getElementById('storage-usage-badge');
+    const statusText = document.getElementById('storage-status-text');
+    if (!usageBadge) return;
+
+    try {
+      let totalBytes = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const val = localStorage.getItem(key);
+        if (key && val) {
+          totalBytes += (key.length + val.length) * 2;
+        }
+      }
+      const kb = (totalBytes / 1024).toFixed(1);
+      usageBadge.textContent = `${kb} KB used`;
+      if (statusText) {
+        statusText.textContent = `${tasks.length} tasks synced • Schema v${CURRENT_SCHEMA_VERSION}`;
+      }
+    } catch (e) {
+      usageBadge.textContent = 'Healthy';
+    }
+  }
+
+  function exportBackupJSON() {
+    const backupData = {
+      app: 'Checklist',
+      version: '1.0.0',
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      tasks: tasks
+    };
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const dateStr = new Date().toISOString().split('T')[0];
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `checklist-backup-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Backup successfully downloaded!');
+  }
+
+  function handleImportFileInput(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(e.target.result);
+        const incomingTasks = Array.isArray(json) ? json : (json && Array.isArray(json.tasks) ? json.tasks : null);
+
+        if (!incomingTasks) {
+          showToast('Invalid backup file structure.');
+          return;
+        }
+
+        const validIncoming = validateAndMigrateTasks(incomingTasks);
+        if (validIncoming.length === 0) {
+          showToast('No valid tasks found in backup.');
+          return;
+        }
+
+        const previousTasks = [...tasks];
+        tasks = validIncoming;
+        saveTasks();
+
+        commandManager.execute({
+          name: 'Restore Backup',
+          execute: () => { tasks = validIncoming; saveTasks(); },
+          undo: () => { tasks = previousTasks; saveTasks(); }
+        });
+
+        closeBackupModal();
+        triggerConfetti();
+        showToast(`Restored ${validIncoming.length} tasks!`, true);
+      } catch (err) {
+        showToast('Failed to parse backup file.');
+      } finally {
+        event.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // PWA Service Worker Registration
+  function registerServiceWorker() {
+    if ('serviceWorker' in navigator && (window.location.protocol.startsWith('http') || window.location.protocol.startsWith('https'))) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => {
+            console.log('[Checklist] Service Worker active, scope:', reg.scope);
+          })
+          .catch((err) => {
+            console.log('[Checklist] Service Worker registration note:', err.message);
+          });
+      });
+    }
+  }
+
+  // Global Error Boundary & Crash Prevention
+  function setupGlobalErrorBoundary() {
+    window.addEventListener('error', (event) => {
+      console.error('[Checklist Crash Guard]:', event.error || event.message);
+      if (mutationOutbox) {
+        mutationOutbox.enqueue('UNHANDLED_ERROR', {
+          message: event.message,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('[Checklist Promise Rejection Guard]:', event.reason);
+      if (mutationOutbox) {
+        mutationOutbox.enqueue('UNHANDLED_REJECTION', {
+          reason: String(event.reason),
+          timestamp: Date.now()
+        });
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
   // 11. Focus Timer Sanctuary
   // ---------------------------------------------------------------------------
   function openFocusModal() {
@@ -1146,6 +1352,17 @@
     if (focusModeBtn) focusModeBtn.addEventListener('click', () => openFocusModal());
     if (closeFocusModalBtn) closeFocusModalBtn.addEventListener('click', () => closeFocusModal());
 
+    // Backup & Data Safety Modal Triggers
+    const backupBtn = document.getElementById('backup-btn');
+    const closeBackupBtn = document.getElementById('close-backup-modal');
+    const exportJsonBtn = document.getElementById('export-json-btn');
+    const importFileInput = document.getElementById('import-file-input');
+
+    if (backupBtn) backupBtn.addEventListener('click', () => openBackupModal());
+    if (closeBackupBtn) closeBackupBtn.addEventListener('click', () => closeBackupModal());
+    if (exportJsonBtn) exportJsonBtn.addEventListener('click', () => exportBackupJSON());
+    if (importFileInput) importFileInput.addEventListener('change', (e) => handleImportFileInput(e));
+
     // Smart Planner Modal Triggers
     const smartPlannerBtn = document.getElementById('smart-planner-btn');
     const closePlannerBtn = document.getElementById('close-planner-modal');
@@ -1187,6 +1404,7 @@
       if (e.key === 'Escape') {
         closeFocusModal();
         closePlannerModal();
+        closeBackupModal();
       }
     });
 
@@ -1197,12 +1415,15 @@
   // 13. Initialization
   // ---------------------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', () => {
+    setupGlobalErrorBoundary();
+    registerServiceWorker();
     updateGreetingAndDate();
     setupEventListeners();
     rebuildDSAEngines();
     renderAll();
     updateUndoRedoButtons();
     updateTimerDisplay();
+    updateStorageHealthBadge();
   });
 
 })();

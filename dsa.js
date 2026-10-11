@@ -123,6 +123,14 @@ class TaskDAG {
     this.dependencies = new Map();
   }
 
+  _getDependencies(task) {
+    if (!task || !task.dependsOn) return [];
+    if (Array.isArray(task.dependsOn)) {
+      return task.dependsOn.filter(Boolean);
+    }
+    return [task.dependsOn];
+  }
+
   buildGraph(tasks) {
     this.adjList.clear();
     this.inDegree.clear();
@@ -137,48 +145,38 @@ class TaskDAG {
       this.dependencies.set(id, new Set());
     }
 
-    // Populate edges
+    // Populate edges (prerequisite -> dependent)
     for (const task of tasks) {
-      if (Array.isArray(task.dependsOn)) {
-        for (const depId of task.dependsOn) {
-          if (taskIds.has(depId)) {
-            this.adjList.get(depId).add(task.id);
-            this.inDegree.set(task.id, (this.inDegree.get(task.id) || 0) + 1);
-            this.dependencies.get(task.id).add(depId);
-          }
+      const deps = this._getDependencies(task);
+      for (const depId of deps) {
+        if (taskIds.has(depId)) {
+          this.adjList.get(depId).add(task.id);
+          this.inDegree.set(task.id, (this.inDegree.get(task.id) || 0) + 1);
+          this.dependencies.get(task.id).add(depId);
         }
       }
     }
   }
 
-  // Detect cycle using 3-color DFS (WHITE=0, GRAY=1, BLACK=2)
+  // Detect cycle using reachability DFS
   hasCycle(candidateTaskId, prerequisiteId) {
-    // Tentatively check if adding edge: prerequisiteId -> candidateTaskId creates a cycle
-    const visited = new Map(); // 0 = unvisited, 1 = visiting (in recursion stack), 2 = visited
+    if (!candidateTaskId || !prerequisiteId) return false;
+    if (candidateTaskId === prerequisiteId) return true;
 
-    for (const id of this.adjList.keys()) {
-      visited.set(id, 0);
-    }
-    visited.set(candidateTaskId, 0);
-    visited.set(prerequisiteId, 0);
-
-    const hasCycleDFS = (u) => {
-      visited.set(u, 1);
-      const neighbors = new Set(this.adjList.get(u) || []);
-      if (u === prerequisiteId) {
-        neighbors.add(candidateTaskId);
+    const visited = new Set();
+    const dfs = (curr) => {
+      if (curr === prerequisiteId) return true;
+      visited.add(curr);
+      const neighbors = this.adjList.get(curr) || [];
+      for (const next of neighbors) {
+        if (!visited.has(next)) {
+          if (dfs(next)) return true;
+        }
       }
-
-      for (const v of neighbors) {
-        const state = visited.get(v) || 0;
-        if (state === 1) return true; // Back-edge detected -> Cycle!
-        if (state === 0 && hasCycleDFS(v)) return true;
-      }
-      visited.set(u, 2);
       return false;
     };
 
-    return hasCycleDFS(candidateTaskId);
+    return dfs(candidateTaskId);
   }
 
   // Kahn's Algorithm for Topological Sort
@@ -211,10 +209,11 @@ class TaskDAG {
 
   // Check if a task is currently blocked by incomplete prerequisites
   isTaskBlocked(task, allTasks) {
-    if (!task.dependsOn || task.dependsOn.length === 0) return false;
+    const deps = this._getDependencies(task);
+    if (deps.length === 0) return false;
     const taskMap = new Map(allTasks.map(t => [t.id, t]));
 
-    for (const depId of task.dependsOn) {
+    for (const depId of deps) {
       const dep = taskMap.get(depId);
       if (dep && !dep.completed) {
         return true; // Blocked by incomplete prerequisite
@@ -224,9 +223,10 @@ class TaskDAG {
   }
 
   getUnmetDependencies(task, allTasks) {
-    if (!task.dependsOn || task.dependsOn.length === 0) return [];
+    const deps = this._getDependencies(task);
+    if (deps.length === 0) return [];
     const taskMap = new Map(allTasks.map(t => [t.id, t]));
-    return task.dependsOn
+    return deps
       .map(id => taskMap.get(id))
       .filter(t => t && !t.completed);
   }
@@ -349,8 +349,8 @@ class CommandManager {
 // ============================================================================
 class TimeboxOptimizer {
   static getEstimatedMinutes(task) {
-    const estimateMap = { quick: 15, steady: 30, deep: 60 };
-    return estimateMap[task.energy] || 30;
+    const estimateMap = { quick: 5, steady: 25, deep: 50 };
+    return estimateMap[task.energy] || 25;
   }
 
   static getTaskValue(task) {
@@ -416,8 +416,11 @@ class MutationOutbox {
 
   loadQueue() {
     try {
-      const data = localStorage.getItem(this.storageKey);
-      return data ? JSON.parse(data) : [];
+      if (typeof localStorage !== 'undefined') {
+        const data = localStorage.getItem(this.storageKey);
+        return data ? JSON.parse(data) : [];
+      }
+      return [];
     } catch (e) {
       return [];
     }
@@ -425,7 +428,9 @@ class MutationOutbox {
 
   saveQueue() {
     try {
-      localStorage.setItem(this.storageKey, JSON.stringify(this.queue));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.storageKey, JSON.stringify(this.queue));
+      }
     } catch (e) {}
     this.notify();
   }
@@ -465,12 +470,25 @@ class MutationOutbox {
   }
 }
 
-// Export as globally accessible engine for browser execution
-window.ChecklistDSA = {
-  TaskMinHeap,
-  TaskDAG,
-  TaskTrie,
-  CommandManager,
-  TimeboxOptimizer,
-  MutationOutbox
-};
+// Universal module export: window for browsers, module.exports for Node/testing
+if (typeof window !== 'undefined') {
+  window.ChecklistDSA = {
+    TaskMinHeap,
+    TaskDAG,
+    TaskTrie,
+    CommandManager,
+    TimeboxOptimizer,
+    MutationOutbox
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    TaskMinHeap,
+    TaskDAG,
+    TaskTrie,
+    CommandManager,
+    TimeboxOptimizer,
+    MutationOutbox
+  };
+}
